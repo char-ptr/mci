@@ -1,0 +1,19 @@
+[package]
+name = "mci"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["cdylib"]
+
+
+[workspace]
+members = ["jdk-sys","mc-mappings","mc-mappings/map-utils","jni"]
+[dependencies]
+jdk-sys = {path = "./jdk-sys"}
+mc-mappings = {path = "./mc-mappings"}
+jni = {path = "./jni"}
+toy-arms = "0.9.4"
+windows = "0.39.0"

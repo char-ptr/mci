@@ -1,17 +1,21 @@
 use std::{path::PathBuf, env};
 
 fn main() {
-    println!("cargo:rustc-link-search=C:\\ProgramData\\scoop\\apps\\oraclejdk\\current\\lib");
+
+    let jdk_location = std::env::var("JAVA_HOME").expect("JAVA_HOME not set");
+
+    println!("cargo:rustc-link-search={}\\lib",jdk_location);
     println!("cargo:rustc-link-lib=jvm");
     println!("cargo:rerun-if-changed=wrapper.h");
 
     let bindings = bindgen::Builder::default()
     // The input header we would like to generate
     // bindings for.
-    .header("C:\\ProgramData\\scoop\\apps\\oraclejdk\\current\\include\\jni.h")
-    .header("C:\\ProgramData\\scoop\\apps\\oraclejdk\\current\\include\\jvmti.h")
+    .header(format!("{}\\include\\jni.h",jdk_location))
+    .header(format!("{}\\include\\jvmti.h",jdk_location))
+    .header(format!("{}\\include\\win32\\jni_md.h",jdk_location))
     // Tell cargo to invalidate the built crate whenever any of the
-    // included header files changed.
+    // included header files changed. //a
     .parse_callbacks(Box::new(bindgen::CargoCallbacks))
     // Finish the builder and generate the bindings.
     .generate()

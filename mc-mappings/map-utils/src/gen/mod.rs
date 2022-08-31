@@ -5,7 +5,8 @@ use rand::Rng;
 use crate::{maps::{SigMappings, SigMod}, type_sig::{sanitize, parse_sig_f, parse_sig_m}};
 
 
-pub fn generate_rs<W:Write>(yarn_maps : Arc<RwLock<SigMappings>>,modul:&SigMod,writer:&mut W) {
+
+pub fn generate_rs<W:Write>(yarn_maps : Arc<RwLock<SigMappings>>,modul:&SigMod,writer:&mut W) -> Result<(),()> {
 
     // let xyarn_maps = &Arc::clone(&yarn_maps).read().unwrap().sig_to_x;
 
@@ -13,7 +14,9 @@ pub fn generate_rs<W:Write>(yarn_maps : Arc<RwLock<SigMappings>>,modul:&SigMod,w
         SigMod::Mod(x, data) => {
             writer.write_all(format!("pub mod {} {{\n",x).as_bytes()).unwrap();
             for d in data {
-                generate_rs(Arc::clone(&yarn_maps),d,writer);
+                if generate_rs(Arc::clone(&yarn_maps),d,writer).is_err() {
+                    return Err(());
+                }
             }
             writer.write_all(b"}\n").unwrap();
         },
@@ -21,15 +24,28 @@ pub fn generate_rs<W:Write>(yarn_maps : Arc<RwLock<SigMappings>>,modul:&SigMod,w
         
             if c.to.is_empty() {
                 // println!("{} empty",c.srg);
-                return;
+                return Ok(());
             }
-            writer.write_all(format!("pub struct r#{} {{\n",sanitize(&c.to)).as_bytes()).unwrap();
-            writer.write_all(b"}\n").unwrap();
-            writer.write_all(format!("impl {} {{\n",sanitize(&c.to)).as_bytes()).unwrap();
+            let class_name = sanitize(&c.to);
+            writer.write_all(format!("pub struct r#{}<'a> {{\n",class_name).as_bytes()).unwrap();
+            writer.write_all(b"pub __map_internal : jni::object::JObject<'a>\n}\n").unwrap();
+            // writer.write_all(b"}\n").unwrap();
+            writer.write_all(format!("impl From<jni::object::JObject<'_>> for {}<'_> {{{}}}\n",class_name,stringify!{
+                fn from(x:jni::object::JObject) -> Self {
+                    Self {
+                        __map_internal: x
+                    }
+                }
+            }).as_bytes()).unwrap();
+            writer.write_all(format!("impl {}<'_> {{\n",sanitize(&c.to)).as_bytes()).unwrap();
+            writer.write_all(format!("const __map_sig : &str = \"{}\";\n",c.from).as_bytes()).unwrap();
             for f in &c.fields {
-                let fty = sanitize(&parse_sig_f(&f.type_,&Arc::clone(&yarn_maps).read().unwrap().sig_to_x));
-                writer.write_all(format!("/* {ty} = {sig} */\npub fn r#get_{}() -> {ty} {{}} \n",sanitize(&f.to),ty=fty,sig=f.type_).as_bytes()).unwrap();
-                writer.write_all(format!("/* {ty} = {sig} */\npub fn r#set_{}(val : {ty}) -> () {{}} \n",sanitize(&f.to),ty=fty,sig=f.type_).as_bytes()).unwrap();
+                let (fty,jclass) = parse_sig_f(&f.type_,&Arc::clone(&yarn_maps).read().unwrap().sig_to_x);
+                let fty = sanitize(&fty);
+                let is_jobj_t = fty.contains("JObject");
+                writer.write_all(format!("/* {ty} = {sig} */\npub fn r#get_{}(&self) -> Result<{ty},()> {{\n{fnb}}} \n",sanitize(&f.to),ty=fty,sig=f.type_,
+                    fnb= if is_jobj_t {"{ty}::from(self.__map_internal.env.find_class(Self::__map_sig)?)"} else {"self.__map_internal.env.find_class(Self::__map_sig)?"}).as_bytes()).unwrap();
+                writer.write_all(format!("/* {ty} = {sig} */\npub fn r#set_{}(&self,val : {ty}) -> () {{}} \n",sanitize(&f.to),ty=fty,sig=f.type_).as_bytes()).unwrap();
             }
             for m in &c.methods {
                 let method_parse_sig = parse_sig_m(&m.type_,&Arc::clone(&yarn_maps).read().unwrap().sig_to_x);
@@ -42,6 +58,8 @@ pub fn generate_rs<W:Write>(yarn_maps : Arc<RwLock<SigMappings>>,modul:&SigMod,w
                 writer.write_all(format!("pub fn r#{}({}) -> {} {{ }}\n",sanitize(&m.to),arg_s,method_parse_sig.ret).as_bytes()).unwrap();
             }
             writer.write_all(b"}\n").unwrap();
+            return Err(());
         },
     }
+    Ok(())
 }

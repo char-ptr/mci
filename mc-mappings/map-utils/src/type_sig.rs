@@ -62,7 +62,7 @@ pub fn resolve_srg(srg:&str,sig2class:&HashMap<String, SigType>) -> String {
         None => "".to_string()
     }
 }
-pub fn parse_sig_f(sig:&str,sig2class:&HashMap<String, SigType>) -> String {
+pub fn parse_sig_f(sig:&str,sig2class:&HashMap<String, SigType>) -> (String,bool) {
     let mut begin = true;
     let mut ret = String::new();
     let mut j_class_search = false;
@@ -103,7 +103,7 @@ pub fn parse_sig_f(sig:&str,sig2class:&HashMap<String, SigType>) -> String {
             let resolved = resolve_srg(&buf,sig2class);
             // println!("jcs {} {}",buf,resolved);
             if resolved.is_empty() {
-                ret.push_str("JObject");
+                ret.push_str("jni::object::JObject");
             } else {
 
                 ret.push_str(&resolve_srg(&buf,sig2class));
@@ -121,7 +121,7 @@ pub fn parse_sig_f(sig:&str,sig2class:&HashMap<String, SigType>) -> String {
     if ret.is_empty() {
         // println!("empty {}",sig);
     }
-    ret
+    (ret,j_class_search)
 }
 pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
     let mut parsed = SigParseM{
@@ -147,7 +147,7 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
                     if !res.is_empty() {
                         current_arg = res;
                     } else {
-                        current_arg = "JObject".to_string();
+                        current_arg = "jni::object::JObject".to_string();
                     }
                 }
                 if in_args {
@@ -182,7 +182,7 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
                 if arr_start {
                     arr_start = false;
                     let ca = current_arg.clone();
-                    current_arg = format!("Vec<{}>",ca);
+                    current_arg = format!("std::vec::Vec<{}>",ca);
                 }
             }
             _=>{

@@ -15,7 +15,8 @@ pub fn generate_rs<W:Write>(yarn_maps : Arc<RwLock<SigMappings>>,modul:&SigMod,w
             writer.write_all(format!("pub mod {} {{\n",x).as_bytes()).unwrap();
             for d in data {
                 if generate_rs(Arc::clone(&yarn_maps),d,writer).is_err() {
-                    return Err(());
+                    // return Err(());
+                    break;
                 }
             }
             writer.write_all(b"}\n").unwrap();
@@ -44,7 +45,7 @@ pub fn generate_rs<W:Write>(yarn_maps : Arc<RwLock<SigMappings>>,modul:&SigMod,w
                 let fty = sanitize(&fty);
                 let is_jobj_t = fty.contains("JObject");
                 writer.write_all(format!("/* {ty} = {sig} */\npub fn r#get_{}(&self) -> Result<{ty},()> {{\n{fnb}}} \n",sanitize(&f.to),ty=fty,sig=f.type_,
-                    fnb= if is_jobj_t {"{ty}::from(self.__map_internal.env.find_class(Self::__map_sig)?)"} else {"self.__map_internal.env.find_class(Self::__map_sig)?"}).as_bytes()).unwrap();
+                    fnb= if is_jobj_t {format!("{}::from(self.__map_internal.env.find_class(Self::__map_sig)?)",fty)} else {"self.__map_internal.env.find_class(Self::__map_sig)?".to_string()}).as_bytes()).unwrap();
                 writer.write_all(format!("/* {ty} = {sig} */\npub fn r#set_{}(&self,val : {ty}) -> () {{}} \n",sanitize(&f.to),ty=fty,sig=f.type_).as_bytes()).unwrap();
             }
             for m in &c.methods {

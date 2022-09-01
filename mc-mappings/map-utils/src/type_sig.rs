@@ -52,7 +52,7 @@ pub fn resolve_srg(srg:&str,sig2class:&HashMap<String, SigType>) -> String {
                         return "".to_string();
                     }
                     base.push_str(&format!("::{}",cla.to));
-                    base
+                    format!("crate::{}",base)
                 },
                 SigType::Field(_) => "".to_string(),
                 SigType::Method(_) => "".to_string(),

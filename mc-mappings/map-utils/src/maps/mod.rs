@@ -2,7 +2,7 @@
 pub mod tiny;
 pub mod yarn;
 
-use std::{collections::{HashSet, HashMap}, borrow::Cow, str::FromStr};
+use std::{collections::{HashSet, HashMap}, borrow::Cow, str::FromStr, fmt::Display};
 #[derive(Debug,Hash,PartialEq, Eq,Clone)]
 
 pub struct SigClass {
@@ -56,6 +56,14 @@ impl SigType<'_> {
 pub enum SigMod<'a> {
     Mod(String,Vec<SigMod<'a>>),
     class(Cow<'a,SigClass>)
+}
+impl Display for SigMod<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SigMod::Mod(n, _) => f.write_str(format!("module:{}",n).as_str()),
+            SigMod::class(c) => f.write_str(format!("class:{}",c.to).as_str()),
+        }
+    }
 }
 
 impl Default for SigMod<'_> {

@@ -1,4 +1,4 @@
-use std::{path::PathBuf, fs::File, io::Read, sync::{Arc, RwLock}, borrow::Cow};
+use std::{path::PathBuf, fs::File, io::Read, sync::{Arc, RwLock}, borrow::Cow, collections::HashMap};
 
 use rand::Rng;
 
@@ -19,7 +19,9 @@ pub fn run_dir<'a>(p:&PathBuf,m:Arc<RwLock<SigMappings<'a>>>, mod_stk : &mut Sig
                 SigMod::Mod(_, vecd) => {
                     vecd.push(modu);
                 },
-                SigMod::class(_) => {},
+                SigMod::class(_) => {
+                    println!("????")
+                },
             }
 
 
@@ -34,12 +36,14 @@ pub fn run_dir<'a>(p:&PathBuf,m:Arc<RwLock<SigMappings<'a>>>, mod_stk : &mut Sig
                 let mut current_m : Option<SigMethod> = None;
 
                 let lines = buf.lines();
+                let mut tabn = HashMap::<isize,String>::new();
                 // let mq  = Arc::clone(&m).write().unwrap();
 
                 for line in lines {
+                    let tabs = line.chars().filter(|c| c.is_whitespace() && c != &' ').count() as isize;
                     let mut line_data = line.split_whitespace();
-                    let command = line_data.nth(0).unwrap().trim();
-                    // println!("{}",command);
+                    let linef = line_data.nth(0).unwrap();
+                    let command = linef.trim();
                     match command {
                         "CLASS" => {
                             
@@ -56,19 +60,24 @@ pub fn run_dir<'a>(p:&PathBuf,m:Arc<RwLock<SigMappings<'a>>>, mod_stk : &mut Sig
                                 }
 
                                 let new_pog = format!("{}${}",old_from,line_data.nth(0).unwrap().trim().to_string());
+                                let ton = line_data.nth(0).unwrap_or(&format!("{}",rand::thread_rng().gen::<u32>())).trim().to_string();
+                                let mut prename = tabn.get(&(tabs-1)).unwrap_or(&"".to_string()).to_string();
+                                tabn.insert(tabs, format!("{}_{}",prename,ton));
                                 let new_cla = SigClass{
                                     from:new_pog.clone(),
-                                    to:line_data.nth(0).unwrap_or("").trim().to_string(),
+                                    to:format!("{}_{}",prename,ton),
                                     fields:vec![],
                                     methods:vec![],
                                     module_stack:mod_stk_str.to_vec(),
                                 };
                                 current_c = Some(new_cla);
                             } else {
-
+                                let from_d = line_data.nth(0).unwrap_or("").trim().to_string();
+                                let to_d = line_data.nth(0).unwrap_or("").trim().to_string();
+                                tabn.insert(tabs, format!("{}",to_d));
                                 let new_cla = SigClass{
-                                    from:line_data.nth(0).unwrap_or("").trim().to_string(),
-                                    to:line_data.nth(0).unwrap_or("").trim().to_string(),
+                                    from:from_d,
+                                    to:to_d,
                                     fields:vec![],
                                     methods:vec![],
                                     module_stack:mod_stk_str.to_vec(),
@@ -139,7 +148,10 @@ pub fn run_dir<'a>(p:&PathBuf,m:Arc<RwLock<SigMappings<'a>>>, mod_stk : &mut Sig
                     Arc::clone(&m).write().unwrap().classes.push(Cow::Owned(clas));
                     {
                         let last = m.write().unwrap().classes.last().unwrap().clone();
-                        m.write().unwrap().sig_to_x.insert(last.from.clone(),SigType::Class(last));
+                        m.write().unwrap().sig_to_x.insert(last.from.clone(),SigType::Class(last.clone()));
+                        if let SigMod::Mod(s, vecd) = mod_stk {
+                            vecd.push(SigMod::class(last));
+                        }
                     }
                 }
 

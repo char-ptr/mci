@@ -8,6 +8,7 @@ edition = "2021"
 [build-dependencies]
 lazy_static = "1.4.0"
 rand = "0.8.5"
+map-utils = {path="./map-utils"}
 [dependencies]
 jni ={path="../jni"}
 map-utils = {path="./map-utils"}

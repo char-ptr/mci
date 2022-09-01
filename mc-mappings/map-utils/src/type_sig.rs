@@ -21,22 +21,22 @@ pub fn sanitize(mut s:&str) -> String {
 }
 #[derive(Debug)]
 pub struct SigParseM {
-    pub args:Vec<String>,
-    pub ret:String,
+    pub args:Vec<(String,String)>,
+    pub ret:(String,String),
 }
-pub fn parse_sig_basic(ch:char) -> String {
+pub fn parse_sig_basic(ch:char) -> (String,String) {
     match ch {
-        'Z' => "bool",
-        'B' => "u8",
-        'C' => "char",
-        'S' => "i16",
-        'I' => "i32",
-        'J' => "i64",
-        'F' => "f32",
-        'D' => "f64",
-        'V' => "()",
-        _=>""
-    }.to_string()
+        'Z' => ("bool".to_string(),"Boolean".to_string()),
+        'B' => ("u8".to_string(),"Byte".to_string()),
+        'C' => ("char".to_string(),"Char".to_string()),
+        'S' => ("i16".to_string(),"Short".to_string()),
+        'I' => ("i32".to_string(),"Int".to_string()),
+        'J' => ("i64".to_string(),"Long".to_string()),
+        'F' => ("f32".to_string(),"Float".to_string()),
+        'D' => ("f64".to_string(),"Double".to_string()),
+        'V' => ("()".to_string(),"Void".to_string()),
+        _=>("".to_string(),"".to_string()),
+    }
 }
 
 pub fn resolve_srg(srg:&str,sig2class:&HashMap<String, SigType>) -> String {
@@ -62,13 +62,14 @@ pub fn resolve_srg(srg:&str,sig2class:&HashMap<String, SigType>) -> String {
         None => "".to_string()
     }
 }
-pub fn parse_sig_f(sig:&str,sig2class:&HashMap<String, SigType>) -> (String,bool) {
+pub fn parse_sig_f(sig:&str,sig2class:&HashMap<String, SigType>) -> (String,String,bool) {
     let mut begin = true;
     let mut ret = String::new();
     let mut j_class_search = false;
     let mut buf = String::new();
     let mut vec_count = 0;
     let mut vec_valid = true;
+    let mut java_ret = String::new();
     for char in sig.chars() {
         match char {
             'L' => {
@@ -97,16 +98,20 @@ pub fn parse_sig_f(sig:&str,sig2class:&HashMap<String, SigType>) -> (String,bool
     };
     if buf.len() > 0 {
         if buf.trim().len() == 1 {
-            ret.push_str(&parse_sig_basic(buf.chars().nth(0).unwrap()));
+            let (r,java) = parse_sig_basic(buf.chars().nth(0).unwrap());
+            java_ret = java;
+            ret.push_str(&r);
         } 
         else if j_class_search {
             let resolved = resolve_srg(&buf,sig2class);
             // println!("jcs {} {}",buf,resolved);
             if resolved.is_empty() {
+                java_ret = "Object".to_string();
                 ret.push_str("jni::object::JObject");
             } else {
-
-                ret.push_str(&resolve_srg(&buf,sig2class));
+                
+                java_ret = "Object".to_string();
+                ret.push_str(&resolved);
             }
         }
             
@@ -116,23 +121,25 @@ pub fn parse_sig_f(sig:&str,sig2class:&HashMap<String, SigType>) -> (String,bool
     }
     for _ in 0..vec_count {
         let inside = ret;
-        ret = format!("std::vec::Vec<{}>",inside);
+        java_ret = "Object".to_string();
+        ret = format!("jni::jarray::JArray<{}>",inside);
     }
     if ret.is_empty() {
         // println!("empty {}",sig);
     }
-    (ret,j_class_search)
+    (ret,java_ret,j_class_search)
 }
 pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
     let mut parsed = SigParseM{
         args:vec![],
-        ret:String::new(),
+        ret:(String::new(),String::new()),
     };
     let mut in_args = false;
     let mut begin = false;
     let mut jclass_search = false;
     let mut arr_start = false;
     let mut current_arg = String::new();
+    let mut current_ret = String::new();
     for char in sig.chars() {
         match char {
             '(' => {
@@ -145,19 +152,21 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
                     let curr = current_arg.clone();
                     let res = resolve_srg(&curr,sig2class);
                     if !res.is_empty() {
+                        current_ret = "Object".to_string();
                         current_arg = res;
                     } else {
+                        current_ret = "Object".to_string();
                         current_arg = "jni::object::JObject".to_string();
                     }
                 }
                 if in_args {
-                    parsed.args.push(current_arg.clone());
+                    parsed.args.push((current_arg.clone(),current_ret.clone()));
                     current_arg.clear();
                 } else {
                     if current_arg != "()" {
                         current_arg = sanitize(&current_arg)
                     }
-                    parsed.ret = current_arg.clone();
+                    parsed.ret = (current_arg.clone(),current_ret.clone());
                     current_arg.clear();
                 }
                 jclass_search = false;
@@ -182,7 +191,8 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
                 if arr_start {
                     arr_start = false;
                     let ca = current_arg.clone();
-                    current_arg = format!("std::vec::Vec<{}>",ca);
+                    current_ret = "Object".to_string();
+                    current_arg = format!("jni::jarray::JArray<{}>",ca);
                 }
             }
             _=>{
@@ -190,11 +200,11 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
                     if jclass_search {
                         current_arg.push(char);
                     } else {
-                        let sig_parse = parse_sig_basic(char);
+                        let (sig_parse,jav) = parse_sig_basic(char);
                         if sig_parse.is_empty() {
 
                         } else {
-                            parsed.args.push(sig_parse);
+                            parsed.args.push((sig_parse,jav));
                             current_arg.clear();
                         }
                     }
@@ -209,11 +219,11 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
     if jclass_search {
         // println!("JCSEARRRR!{}",current_arg);
     } else if current_arg.trim().len() == 1 {
-        let sigparse = parse_sig_basic(current_arg.trim().chars().next().unwrap());
+        let (sigparse,jav) = parse_sig_basic(current_arg.trim().chars().next().unwrap());
         if sigparse.is_empty() {
             // println!("QQQAAARR!{} | parse = {}",current_arg,sigparse)
         } else {
-            parsed.ret = sigparse;
+            parsed.ret = (sigparse,jav);
         }
     }
     parsed

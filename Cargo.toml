@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 members = ["jdk-sys","mc-mappings","mc-mappings/map-utils","jni"]
 [dependencies]
 jdk-sys = {path = "./jdk-sys"}
-# mc-mappings = {path = "./mc-mappings"}
+mc-mappings = {path = "./mc-mappings"}
 jni = {path = "./jni"}
 toy-arms = "0.9.4"
 windows = "0.39.0"

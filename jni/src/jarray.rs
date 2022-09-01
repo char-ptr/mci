@@ -1,6 +1,6 @@
 use std::{ops::{Index, Deref, DerefMut}, default};
 
-use crate::{unchecked_jnic, object::JObject, field::JFieldTypes};
+use crate::{unchecked_jnic, object::JObject};
 use super::env::Jenv;
 pub struct JArray<'a,T> {
     pub ptr : JObject<'a>,

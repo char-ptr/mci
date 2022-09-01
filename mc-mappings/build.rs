@@ -1,6 +1,8 @@
 #![feature(fs_try_exists)]
 
-use std::{path::PathBuf, process, str::FromStr};
+use std::{path::PathBuf, process, str::FromStr, sync::{Arc, RwLock}};
+
+use map_utils::{maps::{SigMappings, yarn::run_dir}, gen::generate_rs};
 
 
 fn main() {
@@ -13,22 +15,40 @@ fn main() {
         process::Command::new("git").args(vec!["-C",&outdir.join("mappings").display().to_string(),"sparse-checkout", "set","mappings"]).spawn().unwrap().wait().unwrap();
     }
     
-    
+    // return;
+
     let start_path = outdir.join("mappings/mappings/net");
 
 
-    // let outdir = PathBuf::from_str(&std::env::var("OUT_DIR").unwrap()).unwrap();
+    let outdir = PathBuf::from_str(&std::env::var("OUT_DIR").unwrap()).unwrap();
     
-    // let mut map_to_rs = std::fs::File::create(outdir.join("maps.rs")).unwrap();
-    // let mut map_to_rstx = std::fs::File::create("./maps.rs").unwrap();
-    // let mut root_mod = Module("root".to_string(),vec![]);
-    // let mut mod_stk = vec!["root".to_string()];
-    // run_dir(&start_path, &mut root_mod,&mut mod_stk);
-    // map_to_rs.write_all(b"use std::vec::Vec;\nuse jni::object::JObject;\n");
-    // generate_rs(&root_mod, &mut map_to_rs);
-    // let mut map_to_rs = std::fs::File::create(outdir.join("maps.rs")).unwrap();
-    // let mut bf = vec![];
-    // map_to_rs.read_to_end(&mut bf);
+    let mut map_to_rs = std::fs::File::create(outdir.join("maps.rs")).unwrap();
+    let mut map_to_rstx = std::fs::File::create("./maps.rs.txt").unwrap();
+    let start_path = PathBuf::from("./mappings/mappings/net");
+    let mut mod_stk = vec!["root".to_string()];
+
+    let sigs = Arc::new(RwLock::new(SigMappings::default()));
+    let sig = Arc::clone(&sigs);
+    let mut mdstks = vec!["root".to_string()];
+    let mut mods = {sig.write().unwrap().mods.clone()};
+
+    run_dir(&start_path, Arc::clone(&sigs),&mut mods, &mut mdstks);
+    println!("done parsing");
+    {
+        let sigs = Arc::clone(&sigs);
+
+        {
+            (*sigs.write().unwrap()).mods = mods.clone();
+        }
+
+        generate_rs(Arc::clone(&sigs), &mods, &mut map_to_rs,"");
+
+        println!("done")
+
+        // let sigs = sigs.read().unwrap();
+        // // println!("{:?}",sigs);
+        // map_to_rstx.write_all(format!("{:#?}",sigs).as_bytes());
+    }
     // map_to_rstx.write_all(&mut bf);
 
 }

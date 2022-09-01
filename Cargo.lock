@@ -248,6 +248,7 @@ version = "0.1.0"
 dependencies = [
  "jdk-sys",
  "jni",
+ "mc-mappings",
  "toy-arms",
  "windows",
 ]

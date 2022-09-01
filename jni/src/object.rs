@@ -1,4 +1,4 @@
-use std::{ffi::CString, ptr};
+use std::{ffi::CString, ptr, sync::Arc};
 
 use jdk_sys::{jfieldID, jmethodID, jvalue, JNI_TRUE};
 use crate::{unchecked_jnic, unchecked_jnice, jvalue::JValue, class::JClass};
@@ -7,23 +7,20 @@ use super::env::Jenv;
 pub struct JObject<'a> {
     pub ptr : jdk_sys::jobject,
     pub env : &'a Jenv<'a>,
-    pub is_instance: bool
+    class : Arc<JClass<'a>>,
 }
 
 impl<'a> JObject<'a> {
-    pub fn new(ptr : jdk_sys::jobject,env : &'a Jenv,is_instance:bool) -> Self {
+    pub fn new(ptr : jdk_sys::jobject,env : &'a Jenv) -> Self {
+        let class = Arc::new(JClass::new(unchecked_jnic!(env.ptr,GetObjectClass, ptr),env));
         JObject {
             ptr,
             env,
-            is_instance
+            class
         }
     }
-    pub fn get_class(&self) -> JClass<'a> {
-        if self.is_instance {
-            JClass::new(unchecked_jnic!(self.env.ptr, GetObjectClass, self.ptr),self.env)
-        } else {
-            JClass::new(self.ptr,self.env)
-        }
+    pub fn get_class(&self) -> Arc<JClass<'a>> {
+        Arc::clone(&self.class)
     }
 
     // get field
@@ -37,7 +34,7 @@ impl<'a> JObject<'a> {
         if obj.is_null() {
             return Err(());
         }
-        Ok(T::from(JObject::new(obj,self.env,true)))
+        Ok(T::from(JObject::new(obj,self.env)))
     }
 
     fn _get_bool_field(&self,name:&str,sig:&str) -> Result<bool,()> {
@@ -76,31 +73,72 @@ impl<'a> JObject<'a> {
     // methods
 
 
-    pub fn call_object_method<T:From<JObject<'a>>>(&self,name:&str,sig:&str,args:Vec<JValue>) -> Result<T,()> {
+    fn _call_object_method<T:From<JObject<'a>>>(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<T,()> {
         let mut obj = ptr::null_mut();
-        let args_ = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
-        if let Ok(fid) = self.get_class().get_method_id(name,sig) {
-            println!("{:?}",fid);
-            let obj_ = unchecked_jnice!(self.env.ptr,CallObjectMethodA, self.ptr, fid,args_.as_ptr());
-            if let Ok(obj_) = obj_ {
-                obj = obj_;
-            }
-        } 
-        else if obj.is_null() {
-            return self.get_class().call_static_object_method::<T>(name, sig, args)
-        }
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+
+        let mid=  self.get_class().get_method_id(name,sig)?;
+        obj = unchecked_jnice!(self.env.ptr,CallObjectMethodA, self.ptr, mid,args.as_ptr())?;
+        
         if obj.is_null() {
             return Err(());
         }
 
-        Ok(T::from(JObject::new(obj,self.env,true)))
+        Ok(T::from(JObject::new(obj,self.env)))
     }
+    fn _call_bool_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<bool,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_class().get_method_id(name,sig)?;
 
+        Ok(unchecked_jnice!(self.env.ptr,CallBooleanMethodA, self.ptr, mid,args.as_ptr() )? == JNI_TRUE as u8)
+    }
+    fn _call_byte_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i8,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_class().get_method_id(name,sig)?;
+
+        unchecked_jnice!(self.env.ptr,CallByteMethodA, self.ptr, mid,args.as_ptr() )
+    }
+    fn _call_char_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<char,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_class().get_method_id(name,sig)?;
+
+        Ok(unchecked_jnice!(self.env.ptr,CallCharMethodA, self.ptr, mid,args.as_ptr())? as u8 as char)
+    }
+    fn _call_short_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i16,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_class().get_method_id(name,sig)?;
+
+        unchecked_jnice!(self.env.ptr,CallShortMethodA, self.ptr, mid,args.as_ptr() )
+    }
+    fn _call_int_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i32,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_class().get_method_id(name,sig)?;
+
+        unchecked_jnice!(self.env.ptr,CallIntMethodA, self.ptr, mid,args.as_ptr() )
+    }
+    fn _call_long_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i64,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_class().get_method_id(name,sig)?;
+
+        unchecked_jnice!(self.env.ptr,CallLongMethodA, self.ptr, mid,args.as_ptr() )
+    }
+    fn _call_float_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<f32,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_class().get_method_id(name,sig)?;
+
+        unchecked_jnice!(self.env.ptr,CallFloatMethodA, self.ptr, mid,args.as_ptr() )
+    }
+    fn _call_double_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<f64,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_class().get_method_id(name,sig)?;
+
+        unchecked_jnice!(self.env.ptr,CallDoubleMethodA, self.ptr, mid,args.as_ptr() )
+    }
 
     // get fields
 
     pub fn get_field_object<T:From<JObject<'a>>>(&self,name:&str,sig:&str) -> Result<T,()> {
-        self._get_obj_field(name, sig).or(self.get_class().get_static_obj_field(name, sig))
+        self._get_obj_field(name, sig).or(self.get_class().get_static_object_field(name, sig))
     }
     pub fn get_field_bool(&self,name:&str,sig:&str) -> Result<bool,()> {
         self._get_bool_field(name, sig).or(self.get_class().get_static_bool_field(name, sig))
@@ -126,13 +164,38 @@ impl<'a> JObject<'a> {
     pub fn get_field_double(&self,name:&str,sig:&str) -> Result<f64,()> {
         self._get_double_field(name, sig).or(self.get_class().get_static_double_field(name, sig))
     }
+
+    // methods
+
+    pub fn call_object_method<T:From<JObject<'a>>>(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<T,()> {
+        self._call_object_method(name, sig, args).or(self.get_class().call_static_object_method(name, sig, args))
+    }
+    pub fn call_bool_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<bool,()> {
+        self._call_bool_method(name, sig, args).or(self.get_class().call_static_bool_method(name, sig, args))
+    }
+    pub fn call_char_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<char,()> {
+        self._call_char_method(name, sig, args).or(self.get_class().call_static_char_method(name, sig, args))
+    }
+    pub fn call_short_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i16,()> {
+        self._call_short_method(name, sig, args).or(self.get_class().call_static_short_method(name, sig, args))
+    }
+    pub fn call_int_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i32,()> {
+        self._call_int_method(name, sig, args).or(self.get_class().call_static_int_method(name, sig, args))
+    }
+    pub fn call_long_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i64,()> {
+        self._call_long_method(name, sig, args).or(self.get_class().call_static_long_method(name, sig, args))
+    }
+    pub fn call_float_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<f32,()> {
+        self._call_float_method(name, sig, args).or(self.get_class().call_static_float_method(name, sig, args))
+    }
+    pub fn call_double_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<f64,()> {
+        self._call_double_method(name, sig, args).or(self.get_class().call_static_double_method(name, sig, args))
+    }
+    
+
 }
 impl<'a> From<&JObject<'a>> for JObject<'a> {
     fn from(x: &JObject<'a>) -> Self {
-        Self {
-            ptr: x.ptr,
-            env: x.env,
-            is_instance: x.is_instance
-        }
+        Self::new(x.ptr, x.env)
     }
 }

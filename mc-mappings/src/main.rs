@@ -18,13 +18,17 @@ fn main() {
     {
         let sigs = Arc::clone(&sigs);
 
-        generate_rs(Arc::clone(&sigs), &mods, &mut map_to_rs);
+        {
+            (*sigs.write().unwrap()).mods = mods.clone();
+        }
 
-        println!("done")
+        generate_rs(Arc::clone(&sigs), &mods, &mut map_to_rs, "");
+
+        println!("done");
 
         // let sigs = sigs.read().unwrap();
         // // println!("{:?}",sigs);
-        // map_to_rstx.write_all(format!("{:#?}",sigs).as_bytes());
+        map_to_rstx.write_all(format!("{:#?}",sigs).as_bytes());
     }
 
     // map_to_rs.write_all(b"use std::vec::Vec;\nuse jni::object::JObject;\n");

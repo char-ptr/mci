@@ -15,6 +15,7 @@ impl<'a> JClass<'a> {
             env,
         }
     }
+
     pub fn get_field_id(&self, name:&str, sig:&str) -> Result<jfieldID,()> {
         let name = CString::new(name).unwrap();
         let sig = CString::new(sig).unwrap();
@@ -40,22 +41,73 @@ impl<'a> JClass<'a> {
         
     }
 
-    pub fn call_static_object_method<T:From<JObject<'a>>>(&self,name:&str,sig:&str,args:Vec<JValue>) -> Result<T,()> {
+    // static methods
+
+    pub fn call_static_object_method<T:From<JObject<'a>>>(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<T,()> {
         let mut obj = ptr::null_mut();
         let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
 
-        if let Ok(fid) = self.get_static_method_id(name,sig) {
-            obj = unchecked_jnice!(self.env.ptr,CallStaticObjectMethodA, self.ptr, fid,args.as_ptr())?;
-        }
-    
+        let mid=  self.get_static_method_id(name,sig)?;
+        obj = unchecked_jnice!(self.env.ptr,CallStaticObjectMethodA, self.ptr, mid,args.as_ptr())?;
+        
         if obj.is_null() {
             return Err(());
         }
 
-        Ok(T::from(JObject::new(obj,self.env,true)))
+        Ok(T::from(JObject::new(obj,self.env)))
+    }
+    pub fn call_static_bool_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<bool,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_static_method_id(name,sig)?;
+
+        Ok(unchecked_jnice!(self.env.ptr,CallStaticBooleanMethodA, self.ptr, mid,args.as_ptr() )? == JNI_TRUE as u8)
+    }
+    pub fn call_static_byte_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i8,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_static_method_id(name,sig)?;
+
+        unchecked_jnice!(self.env.ptr,CallStaticByteMethodA, self.ptr, mid,args.as_ptr() )
+    }
+    pub fn call_static_char_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<char,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_static_method_id(name,sig)?;
+
+        Ok(unchecked_jnice!(self.env.ptr,CallStaticCharMethodA, self.ptr, mid,args.as_ptr())? as u8 as char)
+    }
+    pub fn call_static_short_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i16,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_static_method_id(name,sig)?;
+
+        unchecked_jnice!(self.env.ptr,CallStaticShortMethodA, self.ptr, mid,args.as_ptr() )
+    }
+    pub fn call_static_int_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i32,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_static_method_id(name,sig)?;
+
+        unchecked_jnice!(self.env.ptr,CallStaticIntMethodA, self.ptr, mid,args.as_ptr() )
+    }
+    pub fn call_static_long_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i64,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_static_method_id(name,sig)?;
+
+        unchecked_jnice!(self.env.ptr,CallStaticLongMethodA, self.ptr, mid,args.as_ptr() )
+    }
+    pub fn call_static_float_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<f32,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_static_method_id(name,sig)?;
+
+        unchecked_jnice!(self.env.ptr,CallStaticFloatMethodA, self.ptr, mid,args.as_ptr() )
+    }
+    pub fn call_static_double_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<f64,()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_static_method_id(name,sig)?;
+
+        unchecked_jnice!(self.env.ptr,CallStaticDoubleMethodA, self.ptr, mid,args.as_ptr() )
     }
 
-    pub fn get_static_obj_field<T: From<JObject<'a>>>(&self,name:&str,sig:&str) -> Result<T,()> {
+    // static fields
+
+    pub fn get_static_object_field<T: From<JObject<'a>>>(&self,name:&str,sig:&str) -> Result<T,()> {
         let mut obj = ptr::null_mut();
         let fid = self.get_static_field_id(name,sig)?;
         obj = unchecked_jnice!(self.env.ptr,GetStaticObjectField, self.ptr, fid)?;
@@ -63,7 +115,7 @@ impl<'a> JClass<'a> {
         if obj.is_null() {
             return Err(());
         }
-        Ok(T::from(JObject::new(obj,self.env,true)))
+        Ok(T::from(JObject::new(obj,self.env)))
     }
 
     pub fn get_static_bool_field(&self,name:&str,sig:&str) -> Result<bool,()> {
@@ -98,6 +150,11 @@ impl<'a> JClass<'a> {
         let fid = self.get_static_field_id(name,sig)?;
         Ok(unchecked_jnice!(self.env.ptr,GetStaticDoubleField, self.ptr, fid)?)
     }
+
+
+    // util
+
+    pub fn get_name() {}
 
 }
 

@@ -2,7 +2,7 @@ use std::{ffi::CString, marker::PhantomData, ptr};
 
 use jdk_sys::JNIEnv;
 
-use crate::{unchecked_jnic, unchecked_jnice};
+use crate::{unchecked_jnic, unchecked_jnice, class::JClass};
 
 use super::object::JObject;
 
@@ -39,7 +39,7 @@ impl Jenv<'_> {
             _=> "unknown",
         }.to_string()
     }
-    pub fn find_class(&self, name:&str) -> Result<JObject,()> {
+    pub fn find_class(&self, name:&str) -> Result<JClass,()> {
         let name = CString::new(name).unwrap();
         let jobj = unchecked_jnice!(self.ptr,FindClass, name.as_ptr())?;
         if jobj.is_null(){
@@ -49,7 +49,7 @@ impl Jenv<'_> {
         //     unchecked_jnic!(self.ptr,ExceptionDescribe);
         //     return Err(());
         // }
-        let jobj_custom = JObject::new(jobj,&self,false);
+        let jobj_custom = JClass::new(jobj,&self);
         Ok(jobj_custom)
     }
 }

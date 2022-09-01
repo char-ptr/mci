@@ -26,24 +26,68 @@ impl<'a> JObject<'a> {
         }
     }
 
+    // get field
+
+    
+    pub fn _get_obj_field<T: From<JObject<'a>>>(&self,name:&str,sig:&str) -> Result<T,()> {
+        let mut obj = ptr::null_mut();
+        let fid = self.get_class().get_field_id(name,sig)?;
+        obj = unchecked_jnice!(self.env.ptr,GetObjectField, self.ptr, fid)?;
+    
+        if obj.is_null() {
+            return Err(());
+        }
+        Ok(T::from(JObject::new(obj,self.env,true)))
+    }
+
+    fn _get_bool_field(&self,name:&str,sig:&str) -> Result<bool,()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        Ok(unchecked_jnice!(self.env.ptr,GetBooleanField, self.ptr, fid)? == JNI_TRUE as u8)
+    }
+    fn _get_byte_field(&self,name:&str,sig:&str) -> Result<i8,()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        Ok(unchecked_jnice!(self.env.ptr,GetByteField, self.ptr, fid)? as i8)
+    }
+    fn _get_char_field(&self,name:&str,sig:&str) -> Result<char,()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        Ok(unchecked_jnice!(self.env.ptr,GetCharField, self.ptr, fid)? as u8 as char)
+    }
+    fn _get_short_field(&self,name:&str,sig:&str) -> Result<i16,()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        Ok(unchecked_jnice!(self.env.ptr,GetShortField, self.ptr, fid)?)
+    }
+    fn _get_int_field(&self,name:&str,sig:&str) -> Result<i32,()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        Ok(unchecked_jnice!(self.env.ptr,GetIntField, self.ptr, fid)?)
+    }
+    fn _get_long_field(&self,name:&str,sig:&str) -> Result<i64,()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        Ok(unchecked_jnice!(self.env.ptr,GetLongField, self.ptr, fid)?)
+    }
+    fn _get_float_field(&self,name:&str,sig:&str) -> Result<f32,()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        Ok(unchecked_jnice!(self.env.ptr,GetFloatField, self.ptr, fid)?)
+    }
+    fn _get_double_field(&self,name:&str,sig:&str) -> Result<f64,()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        Ok(unchecked_jnice!(self.env.ptr,GetDoubleField, self.ptr, fid)?)
+    }
 
     // methods
 
 
     pub fn call_object_method<T:From<JObject<'a>>>(&self,name:&str,sig:&str,args:Vec<JValue>) -> Result<T,()> {
         let mut obj = ptr::null_mut();
-        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let args_ = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
         if let Ok(fid) = self.get_class().get_method_id(name,sig) {
             println!("{:?}",fid);
-            let obj_ = unchecked_jnice!(self.env.ptr,CallObjectMethodA, self.ptr, fid,args.as_ptr());
+            let obj_ = unchecked_jnice!(self.env.ptr,CallObjectMethodA, self.ptr, fid,args_.as_ptr());
             if let Ok(obj_) = obj_ {
                 obj = obj_;
             }
         } 
         else if obj.is_null() {
-            if let Ok(fid) = self.get_class().get_static_method_id(name,sig) {
-                obj = unchecked_jnice!(self.env.ptr,CallStaticObjectMethodA, self.ptr, fid,args.as_ptr())?;
-            }
+            return self.get_class().call_static_object_method::<T>(name, sig, args)
         }
         if obj.is_null() {
             return Err(());
@@ -56,186 +100,31 @@ impl<'a> JObject<'a> {
     // get fields
 
     pub fn get_field_object<T:From<JObject<'a>>>(&self,name:&str,sig:&str) -> Result<T,()> {
-        let mut obj = ptr::null_mut();
-        if let Ok(fid) = self.get_class().get_static_field_id(name,sig) {
-            println!("{:?}",fid);
-            let obj_ = unchecked_jnice!(self.env.ptr,GetStaticObjectField, self.ptr, fid);
-            if let Ok(obj_) = obj_ {
-                obj = obj_;
-            }
-        } 
-        else if obj.is_null() {
-            if let Ok(fid) = self.get_class().get_field_id(name,sig) {
-                obj = unchecked_jnice!(self.env.ptr,GetObjectField, self.ptr, fid)?;
-            }
-        }
-        if obj.is_null() {
-            return Err(());
-        }
-
-        Ok(T::from(JObject::new(obj,self.env,true)))
+        self._get_obj_field(name, sig).or(self.get_class().get_static_obj_field(name, sig))
     }
     pub fn get_field_bool(&self,name:&str,sig:&str) -> Result<bool,()> {
-        let mut changed = false;
-        let mut iret = false;
-        if let Ok(fid) = self.get_class().get_static_field_id(name,sig) {
-            println!("{:?}",fid);
-            let obj_ = unchecked_jnice!(self.env.ptr,GetStaticBooleanField, self.ptr, fid);
-            if let Ok(obj_) = obj_ {
-                iret = obj_ == 1;
-                changed = true;
-            }
-        } 
-        else if iret == false {
-            println!("here");
-            if let Ok(fid) = self.get_class().get_field_id(name,sig) {
-                println!("{:?}",fid);
-                iret = unchecked_jnice!(self.env.ptr,GetBooleanField, self.ptr, fid)? == JNI_TRUE as u8;
-                changed = true;
-            }
-        }
-        if !changed {
-            return Err(());
-        }
-
-        Ok(iret)
+        self._get_bool_field(name, sig).or(self.get_class().get_static_bool_field(name, sig))
     }
     pub fn get_field_byte(&self,name:&str,sig:&str) -> Result<i8,()> {
-        let mut iret = 0i8;
-        if let Ok(fid) = self.get_class().get_static_field_id(name,sig) {
-            println!("{:?}",fid);
-            let obj_ = unchecked_jnice!(self.env.ptr,GetStaticByteField, self.ptr, fid);
-            if let Ok(obj_) = obj_ {
-                iret = obj_;
-            }
-        } 
-        else if iret == 0i8{
-            if let Ok(fid) = self.get_class().get_field_id(name,sig) {
-                iret = unchecked_jnice!(self.env.ptr,GetByteField, self.ptr, fid)?;
-            }
-        }
-
-        Ok(iret)
+        self._get_byte_field(name, sig).or(self.get_class().get_static_byte_field(name, sig))
     }
     pub fn get_field_char(&self,name:&str,sig:&str) -> Result<char,()> {
-        let mut iret = '\0';
-        if let Ok(fid) = self.get_class().get_static_field_id(name,sig) {
-            println!("{:?}",fid);
-            let obj_ = unchecked_jnice!(self.env.ptr,GetStaticCharField, self.ptr, fid);
-            if let Ok(obj_) = obj_ {
-                iret = obj_ as u8 as char;
-            }
-        } 
-        else if iret == '\0' {
-            if let Ok(fid) = self.get_class().get_field_id(name,sig) {
-                iret = unchecked_jnice!(self.env.ptr,GetCharField, self.ptr, fid)? as u8 as char;
-            }
-        }
-        if iret == '\0' {
-            return Err(());
-        }
-
-        Ok(iret)
+        self._get_char_field(name, sig).or(self.get_class().get_static_char_field(name, sig))
     }
     pub fn get_field_short(&self,name:&str,sig:&str) -> Result<i16,()> {
-        let mut iret = -9917i16;
-        if let Ok(fid) = self.get_class().get_static_field_id(name,sig) {
-            println!("{:?}",fid);
-            let obj_ = unchecked_jnice!(self.env.ptr,GetStaticShortField, self.ptr, fid);
-            if let Ok(obj_) = obj_ {
-                iret = obj_;
-            }
-        } 
-        else if iret == -9917i16 {
-            if let Ok(fid) = self.get_class().get_field_id(name,sig) {
-                iret = unchecked_jnice!(self.env.ptr,GetShortField, self.ptr, fid)?;
-            }
-        }
-        if iret == -9917i16 {
-            return Err(());
-        }
-
-        Ok(iret)
+        self._get_short_field(name, sig).or(self.get_class().get_static_short_field(name, sig))
     }
     pub fn get_field_int(&self,name:&str,sig:&str) -> Result<i32,()> {
-        let mut iret = -99175165;
-        if let Ok(fid) = self.get_class().get_static_field_id(name,sig) {
-            println!("{:?}",fid);
-            let obj_ = unchecked_jnice!(self.env.ptr,GetStaticIntField, self.ptr, fid);
-            if let Ok(obj_) = obj_ {
-                iret = obj_;
-            }
-        } 
-        else if iret == -99175165 {
-            if let Ok(fid) = self.get_class().get_field_id(name,sig) {
-                iret = unchecked_jnice!(self.env.ptr,GetIntField, self.ptr, fid)?;
-            }
-        }
-        if iret == -99175165 {
-            return Err(());
-        }
-
-        Ok(iret)
+        self._get_int_field(name, sig).or(self.get_class().get_static_int_field(name, sig))
     }
     pub fn get_field_long(&self,name:&str,sig:&str) -> Result<i64,()> {
-        let mut iret = -99175165i64;
-        if let Ok(fid) = self.get_class().get_static_field_id(name,sig) {
-            println!("{:?}",fid);
-            let obj_ = unchecked_jnice!(self.env.ptr,GetStaticLongField, self.ptr, fid);
-            if let Ok(obj_) = obj_ {
-                iret = obj_;
-            }
-        } 
-        else if iret == -99175165i64 {
-            if let Ok(fid) = self.get_class().get_field_id(name,sig) {
-                iret = unchecked_jnice!(self.env.ptr,GetLongField, self.ptr, fid)?;
-            }
-        }
-        if iret == -99175165i64 {
-            return Err(());
-        }
-
-        Ok(iret)
+        self._get_long_field(name, sig).or(self.get_class().get_static_long_field(name, sig))
     }
     pub fn get_field_float(&self,name:&str,sig:&str) -> Result<f32,()> {
-        let mut iret = -99175165f32;
-        if let Ok(fid) = self.get_class().get_static_field_id(name,sig) {
-            println!("{:?}",fid);
-            let obj_ = unchecked_jnice!(self.env.ptr,GetStaticFloatField, self.ptr, fid);
-            if let Ok(obj_) = obj_ {
-                iret = obj_;
-            }
-        } 
-        else if iret == -99175165f32 {
-            if let Ok(fid) = self.get_class().get_field_id(name,sig) {
-                iret = unchecked_jnice!(self.env.ptr,GetFloatField, self.ptr, fid)?;
-            }
-        }
-        if iret == -99175165f32 {
-            return Err(());
-        }
-
-        Ok(iret)
+        self._get_float_field(name, sig).or(self.get_class().get_static_float_field(name, sig))
     }
     pub fn get_field_double(&self,name:&str,sig:&str) -> Result<f64,()> {
-        let mut iret = -99175165f64;
-        if let Ok(fid) = self.get_class().get_static_field_id(name,sig) {
-            println!("{:?}",fid);
-            let obj_ = unchecked_jnice!(self.env.ptr,GetStaticDoubleField, self.ptr, fid);
-            if let Ok(obj_) = obj_ {
-                iret = obj_;
-            }
-        } 
-        else if iret == -99175165f64 {
-            if let Ok(fid) = self.get_class().get_field_id(name,sig) {
-                iret = unchecked_jnice!(self.env.ptr,GetDoubleField, self.ptr, fid)?;
-            }
-        }
-        if iret == -99175165f64 {
-            return Err(());
-        }
-
-        Ok(iret)
+        self._get_double_field(name, sig).or(self.get_class().get_static_double_field(name, sig))
     }
 }
 impl<'a> From<&JObject<'a>> for JObject<'a> {

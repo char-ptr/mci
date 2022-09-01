@@ -1,5 +1,7 @@
 #![feature(new_uninit)]
 mod mci;
+use std::ffi::CString;
+
 use jni::object::JObject;
 use toy_arms::{VirtualKeyCode};
 

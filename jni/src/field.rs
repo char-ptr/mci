@@ -30,7 +30,7 @@ pub enum JFieldTypesRet<'a> {
 impl<'a> JFieldTypes {
     pub fn get_field(&self,env : &'a Jenv<'a>, obj : &JObject, field: jfieldID) -> JFieldTypesRet<'a> {
         match self {
-            JFieldTypes::Object => JFieldTypesRet::Object(JObject::new(unchecked_jnic!(env.ptr,GetObjectField, obj.ptr, field),env)),
+            JFieldTypes::Object => JFieldTypesRet::Object(JObject::new(unchecked_jnic!(env.ptr,GetObjectField, obj.ptr, field),env,true)),
             JFieldTypes::Boolean => JFieldTypesRet::Boolean(unchecked_jnic!(env.ptr,GetBooleanField, obj.ptr, field) == 1),
             JFieldTypes::Byte => JFieldTypesRet::Byte(unchecked_jnic!(env.ptr,GetByteField, obj.ptr, field)),
             JFieldTypes::Char => JFieldTypesRet::Char(unchecked_jnic!(env.ptr,GetCharField, obj.ptr, field) as u8 as char),
@@ -43,7 +43,7 @@ impl<'a> JFieldTypes {
     }
     pub fn get_static_field(&self,env : &'a Jenv<'a>, obj : &JObject, field: jfieldID) -> JFieldTypesRet<'a> {
         match self {
-            JFieldTypes::Object => JFieldTypesRet::Object(JObject::new(unchecked_jnic!(env.ptr,GetStaticObjectField, obj.ptr, field),env)),
+            JFieldTypes::Object => JFieldTypesRet::Object(JObject::new(unchecked_jnic!(env.ptr,GetStaticObjectField, obj.ptr, field),env,true)),
             JFieldTypes::Boolean => JFieldTypesRet::Boolean(unchecked_jnic!(env.ptr,GetStaticBooleanField, obj.ptr, field) == 1),
             JFieldTypes::Byte => JFieldTypesRet::Byte(unchecked_jnic!(env.ptr,GetStaticByteField, obj.ptr, field)),
             JFieldTypes::Char => JFieldTypesRet::Char(unchecked_jnic!(env.ptr,GetStaticCharField, obj.ptr, field) as u8 as char),

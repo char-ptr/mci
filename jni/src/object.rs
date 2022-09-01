@@ -1,43 +1,63 @@
 use std::{ffi::CString, ptr};
 
-use jdk_sys::{jfieldID, jmethodID, jvalue};
+use jdk_sys::{jfieldID, jmethodID, jvalue, JNI_TRUE};
 use crate::{unchecked_jnic, unchecked_jnice, jvalue::JValue};
 use super::env::Jenv;
 
 pub struct JObject<'a> {
     pub ptr : jdk_sys::jobject,
     pub env : &'a Jenv<'a>,
+    pub is_instance: bool
 }
 
 impl<'a> JObject<'a> {
-    pub fn new(ptr : jdk_sys::jobject,env : &'a Jenv) -> Self {
+    pub fn new(ptr : jdk_sys::jobject,env : &'a Jenv,is_instance:bool) -> Self {
         JObject {
             ptr,
             env,
+            is_instance
         }
     }
     pub fn get_field_id(&self, name:&str, sig:&str) -> Result<jfieldID,()> {
-        let name = CString::new(name).unwrap().as_ptr();
-        let sig = CString::new(sig).unwrap().as_ptr();
-        unchecked_jnice!(self.env.ptr,GetFieldID, self.ptr, name, sig)
+        if !self.is_instance {
+            println!("attempt to get field id from static");
+            return Err(());
+        }
+        let name = CString::new(name).unwrap();
+        let sig = CString::new(sig).unwrap();
+        println!("get_field_id");
+        println!("{:?} {:?}",name, sig);
+        Ok(unchecked_jnic!(self.env.ptr,GetFieldID, self.ptr, name.as_ptr(), sig.as_ptr()))
 
     }
     pub fn get_static_field_id(&self, name:&str, sig:&str) -> Result<jfieldID,()> {
-        let name = CString::new(name).unwrap().as_ptr();
-        let sig = CString::new(sig).unwrap().as_ptr();
-        unchecked_jnice!(self.env.ptr,GetStaticFieldID, self.ptr, name, sig)
+        if self.is_instance {
+            println!("attempt to get static field id from instance");
+            return Err(());
+        }
+        let name = CString::new(name).unwrap();
+        let sig = CString::new(sig).unwrap();
+        unchecked_jnice!(self.env.ptr,GetStaticFieldID, self.ptr, name.as_ptr(), sig.as_ptr())
         
     }
     pub fn get_method_id(&self, name:&str, sig:&str) -> Result<jmethodID,()> {
-        let name = CString::new(name).unwrap().as_ptr();
-        let sig = CString::new(sig).unwrap().as_ptr();
-        unchecked_jnice!(self.env.ptr,GetMethodID, self.ptr, name, sig)
+        if !self.is_instance {
+            println!("attempt to get method id from static");
+            return Err(());
+        }
+        let name = CString::new(name).unwrap();
+        let sig = CString::new(sig).unwrap();
+        unchecked_jnice!(self.env.ptr,GetMethodID, self.ptr, name.as_ptr(), sig.as_ptr())
 
     }
     pub fn get_static_method_id(&self, name:&str, sig:&str) -> Result<jmethodID,()> {
-        let name = CString::new(name).unwrap().as_ptr();
-        let sig = CString::new(sig).unwrap().as_ptr();
-        unchecked_jnice!(self.env.ptr,GetStaticMethodID, self.ptr, name, sig)
+        if self.is_instance {
+            println!("attempt to get static method id from instance");
+            return Err(());
+        }
+        let name = CString::new(name).unwrap();
+        let sig = CString::new(sig).unwrap();
+        unchecked_jnice!(self.env.ptr,GetStaticMethodID, self.ptr, name.as_ptr(), sig.as_ptr())
         
     }
 
@@ -64,7 +84,7 @@ impl<'a> JObject<'a> {
             return Err(());
         }
 
-        Ok(T::from(JObject::new(obj,self.env)))
+        Ok(T::from(JObject::new(obj,self.env,true)))
     }
 
 
@@ -88,7 +108,7 @@ impl<'a> JObject<'a> {
             return Err(());
         }
 
-        Ok(T::from(JObject::new(obj,self.env)))
+        Ok(T::from(JObject::new(obj,self.env,true)))
     }
     pub fn get_field_bool(&self,name:&str,sig:&str) -> Result<bool,()> {
         let mut iret = false;
@@ -100,8 +120,10 @@ impl<'a> JObject<'a> {
             }
         } 
         else if iret == false {
+            println!("here");
             if let Ok(fid) = self.get_field_id(name,sig) {
-                iret = unchecked_jnice!(self.env.ptr,GetStaticBooleanField, self.ptr, fid)? == 1;
+                println!("{:?}",fid);
+                iret = unchecked_jnice!(self.env.ptr,GetStaticBooleanField, self.ptr, fid)? == JNI_TRUE as u8;
             }
         }
 
@@ -250,6 +272,7 @@ impl<'a> From<&JObject<'a>> for JObject<'a> {
         Self {
             ptr: x.ptr,
             env: x.env,
+            is_instance: x.is_instance
         }
     }
 }

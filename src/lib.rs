@@ -25,9 +25,12 @@ fn main_thread() -> Result<(), String> {
         println!("version: {}", ver);
 
         let MinecraftClient = jenv.find_class("eev").unwrap();
-        println!("mc = {:?}",MinecraftClient.ptr);
+        println!("mc = {:?} | inst = {}",MinecraftClient.ptr, MinecraftClient.is_instance);
         if let Ok(obj) = MinecraftClient.call_object_method::<JObject>("G", "()Leev;",vec![]) {
             println!("oke {:?}",obj.ptr);
+
+            let is_64bit = obj.get_field_bool("ac", "Z");
+            println!("is_64bit = {:?}",is_64bit);
         }
         println!("q");
         // let class_loader_field_id = Launch.get_static_field_id("classLoader", "Lnet/minecraft/launchwrapper/LaunchClassLoader;");

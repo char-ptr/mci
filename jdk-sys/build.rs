@@ -11,9 +11,9 @@ fn main() {
     let bindings = bindgen::Builder::default()
     // The input header we would like to generate
     // bindings for.
+    .header(format!("{}\\include\\win32\\jni_md.h",jdk_location))
     .header(format!("{}\\include\\jni.h",jdk_location))
     .header(format!("{}\\include\\jvmti.h",jdk_location))
-    .header(format!("{}\\include\\win32\\jni_md.h",jdk_location))
     // Tell cargo to invalidate the built crate whenever any of the
     // included header files changed. //a
     .parse_callbacks(Box::new(bindgen::CargoCallbacks))

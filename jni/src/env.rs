@@ -49,7 +49,7 @@ impl Jenv<'_> {
         //     unchecked_jnic!(self.ptr,ExceptionDescribe);
         //     return Err(());
         // }
-        let jobj_custom = JObject::new(jobj,&self);
+        let jobj_custom = JObject::new(jobj,&self,false);
         Ok(jobj_custom)
     }
 }

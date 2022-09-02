@@ -28,7 +28,7 @@ fn main_thread() -> Result<(), String> {
 
         let minecraft_client = jenv.find_class("eev").unwrap();
         println!("mc = {:?}",minecraft_client.ptr);
-        if let Ok(obj) = minecraft_client.call_static_object_method::<JObject>("G", "()Leev;",vec![]) {
+        if let Ok(obj) = minecraft_client.call_static_object_method::<JObject>("G", "()Leev;",&vec![]) {
             println!("oke {:?}",obj.ptr);
 
             let is_64bit = obj.get_field_bool("ac", "Z");

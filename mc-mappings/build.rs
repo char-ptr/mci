@@ -41,7 +41,7 @@ fn main() {
             (*sigs.write().unwrap()).mods = mods.clone();
         }
 
-        generate_rs(Arc::clone(&sigs), &mods, &mut map_to_rs,"");
+        // generate_rs(Arc::clone(&sigs), &mods, &mut map_to_rs,"");
 
         println!("done")
 

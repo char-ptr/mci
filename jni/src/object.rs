@@ -4,11 +4,13 @@ use jdk_sys::{jfieldID, jmethodID, jvalue, JNI_TRUE};
 use crate::{unchecked_jnic, unchecked_jnice, jvalue::JValue, class::JClass};
 use super::env::Jenv;
 
+#[derive(Debug, Clone)]
 pub struct JObject<'a> {
     pub ptr : jdk_sys::jobject,
     pub env : &'a Jenv<'a>,
     class : Arc<JClass<'a>>,
 }
+
 
 impl<'a> JObject<'a> {
     pub fn new(ptr : jdk_sys::jobject,env : &'a Jenv) -> Self {
@@ -26,7 +28,7 @@ impl<'a> JObject<'a> {
     // get field
 
     
-    pub fn _get_obj_field<T: From<JObject<'a>>>(&self,name:&str,sig:&str) -> Result<T,()> {
+    pub fn _get_object_field<T: From<JObject<'a>>>(&self,name:&str,sig:&str) -> Result<T,()> {
         let mut obj = ptr::null_mut();
         let fid = self.get_class().get_field_id(name,sig)?;
         obj = unchecked_jnice!(self.env.ptr,GetObjectField, self.ptr, fid)?;
@@ -68,6 +70,46 @@ impl<'a> JObject<'a> {
     fn _get_double_field(&self,name:&str,sig:&str) -> Result<f64,()> {
         let fid = self.get_class().get_field_id(name,sig)?;
         Ok(unchecked_jnice!(self.env.ptr,GetDoubleField, self.ptr, fid)?)
+    }
+
+    // set
+
+    pub fn _set_object_field(&self,name:&str,sig:&str,new_value:&'a JObject<'a>) -> Result<(),()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetObjectField, self.ptr, fid,new_value.ptr)
+    }
+
+    pub fn _set_bool_field(&self,name:&str,sig:&str, new_value:bool) -> Result<(),()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetBooleanField, self.ptr, fid,new_value as u8)
+    }
+    pub fn _set_byte_field(&self,name:&str,sig:&str,new_value:i8) -> Result<(),()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetByteField, self.ptr, fid,new_value as i8)
+    }
+    pub fn _set_char_field(&self,name:&str,sig:&str,new_value:char) -> Result<(),()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetCharField, self.ptr, fid, new_value as u16)
+    }
+    pub fn _set_short_field(&self,name:&str,sig:&str,new_value:i16) -> Result<(),()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetShortField, self.ptr, fid,new_value)
+    }
+    pub fn _set_int_field(&self,name:&str,sig:&str,new_value:i32) -> Result<(),()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetIntField, self.ptr, fid,new_value)
+    }
+    pub fn _set_long_field(&self,name:&str,sig:&str,new_value:i64) -> Result<(),()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetLongField, self.ptr, fid,new_value)
+    }
+    pub fn _set_float_field(&self,name:&str,sig:&str,new_value:f32) -> Result<(),()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetFloatField, self.ptr, fid,new_value)
+    }
+    pub fn _set_double_field(&self,name:&str,sig:&str,new_value:f64) -> Result<(),()> {
+        let fid = self.get_class().get_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetDoubleField, self.ptr, fid,new_value)
     }
 
     // methods
@@ -138,7 +180,7 @@ impl<'a> JObject<'a> {
     // get fields
 
     pub fn get_field_object<T:From<JObject<'a>>>(&self,name:&str,sig:&str) -> Result<T,()> {
-        self._get_obj_field(name, sig).or(self.get_class().get_static_object_field(name, sig))
+        self._get_object_field(name, sig).or(self.get_class().get_static_object_field(name, sig))
     }
     pub fn get_field_bool(&self,name:&str,sig:&str) -> Result<bool,()> {
         self._get_bool_field(name, sig).or(self.get_class().get_static_bool_field(name, sig))
@@ -163,6 +205,36 @@ impl<'a> JObject<'a> {
     }
     pub fn get_field_double(&self,name:&str,sig:&str) -> Result<f64,()> {
         self._get_double_field(name, sig).or(self.get_class().get_static_double_field(name, sig))
+    }
+
+        // set fields
+
+    pub fn set_field_object(&self,name:&str,sig:&str,new_value:&'a JObject<'a>) -> Result<(),()> {
+        self._set_object_field(name, sig, new_value).or(self.get_class().set_static_object_field(name, sig, new_value))
+    }
+    pub fn set_field_bool(&self,name:&str,sig:&str,new_value:bool) -> Result<(),()> {
+        self._set_bool_field(name, sig, new_value).or(self.get_class().set_static_bool_field(name, sig, new_value))
+    }
+    pub fn set_field_byte(&self,name:&str,sig:&str,new_value:i8) -> Result<(),()> {
+        self._set_byte_field(name, sig, new_value).or(self.get_class().set_static_byte_field(name, sig, new_value))
+    }
+    pub fn set_field_char(&self,name:&str,sig:&str,new_value:char) -> Result<(),()> {
+        self._set_char_field(name, sig, new_value).or(self.get_class().set_static_char_field(name, sig, new_value))
+    }
+    pub fn set_field_short(&self,name:&str,sig:&str,new_value:i16) -> Result<(),()> {
+        self._set_short_field(name, sig, new_value).or(self.get_class().set_static_short_field(name, sig, new_value))
+    }
+    pub fn set_field_int(&self,name:&str,sig:&str,new_value:i32) -> Result<(),()> {
+        self._set_int_field(name, sig, new_value).or(self.get_class().set_static_int_field(name, sig, new_value))
+    }
+    pub fn set_field_long(&self,name:&str,sig:&str,new_value:i64) -> Result<(),()> {
+        self._set_long_field(name, sig, new_value).or(self.get_class().set_static_long_field(name, sig, new_value))
+    }
+    pub fn set_field_float(&self,name:&str,sig:&str,new_value:f32) -> Result<(),()> {
+        self._set_float_field(name, sig, new_value).or(self.get_class().set_static_float_field(name, sig, new_value))
+    }
+    pub fn set_field_double(&self,name:&str,sig:&str,new_value:f64) -> Result<(),()> {
+        self._set_double_field(name, sig, new_value).or(self.get_class().set_static_double_field(name, sig, new_value))
     }
 
     // methods

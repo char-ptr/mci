@@ -3,7 +3,7 @@ use std::{ffi::CString, ptr};
 use jdk_sys::{jfieldID, jmethodID, jvalue, JNI_TRUE};
 
 use crate::{env::Jenv, object::JObject, unchecked_jnic, unchecked_jnice, jvalue::JValue};
-
+#[derive(Debug, Clone,Copy)]
 pub struct JClass<'a> {
     pub ptr : jdk_sys::jclass,
     pub env : &'a Jenv<'a>,
@@ -107,6 +107,8 @@ impl<'a> JClass<'a> {
 
     // static fields
 
+    // get
+
     pub fn get_static_object_field<T: From<JObject<'a>>>(&self,name:&str,sig:&str) -> Result<T,()> {
         let mut obj = ptr::null_mut();
         let fid = self.get_static_field_id(name,sig)?;
@@ -149,6 +151,46 @@ impl<'a> JClass<'a> {
     pub fn get_static_double_field(&self,name:&str,sig:&str) -> Result<f64,()> {
         let fid = self.get_static_field_id(name,sig)?;
         Ok(unchecked_jnice!(self.env.ptr,GetStaticDoubleField, self.ptr, fid)?)
+    }
+
+    // set
+
+    pub fn set_static_object_field(&self,name:&str,sig:&str,new_value:&'a JObject<'a>) -> Result<(),()> {
+        let fid = self.get_static_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetStaticObjectField, self.ptr, fid,new_value.ptr)
+    }
+
+    pub fn set_static_bool_field(&self,name:&str,sig:&str, new_value:bool) -> Result<(),()> {
+        let fid = self.get_static_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetStaticBooleanField, self.ptr, fid,new_value as u8)
+    }
+    pub fn set_static_byte_field(&self,name:&str,sig:&str,new_value:i8) -> Result<(),()> {
+        let fid = self.get_static_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetStaticByteField, self.ptr, fid,new_value as i8)
+    }
+    pub fn set_static_char_field(&self,name:&str,sig:&str,new_value:char) -> Result<(),()> {
+        let fid = self.get_static_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetStaticCharField, self.ptr, fid, new_value as u16)
+    }
+    pub fn set_static_short_field(&self,name:&str,sig:&str,new_value:i16) -> Result<(),()> {
+        let fid = self.get_static_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetStaticShortField, self.ptr, fid,new_value)
+    }
+    pub fn set_static_int_field(&self,name:&str,sig:&str,new_value:i32) -> Result<(),()> {
+        let fid = self.get_static_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetStaticIntField, self.ptr, fid,new_value)
+    }
+    pub fn set_static_long_field(&self,name:&str,sig:&str,new_value:i64) -> Result<(),()> {
+        let fid = self.get_static_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetStaticLongField, self.ptr, fid,new_value)
+    }
+    pub fn set_static_float_field(&self,name:&str,sig:&str,new_value:f32) -> Result<(),()> {
+        let fid = self.get_static_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetStaticFloatField, self.ptr, fid,new_value)
+    }
+    pub fn set_static_double_field(&self,name:&str,sig:&str,new_value:f64) -> Result<(),()> {
+        let fid = self.get_static_field_id(name,sig)?;
+        unchecked_jnice!(self.env.ptr,SetStaticDoubleField, self.ptr, fid,new_value)
     }
 
 

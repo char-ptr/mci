@@ -51,3 +51,7 @@ i don't recommend using right now.
  1. im currently working on a tool to get static fields and method names from a jar file.
  ### MCI (root)
  im not even working on it until mappings work lol
+
+
+## LICENSE
+[this project / library is licensed under **GNU Lesser General Public License v2.1**](https://github.com/pozm/mci/blob/master/LICENSE)

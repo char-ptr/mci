@@ -206,6 +206,7 @@ impl<'a> JObject<'a> {
     pub fn get_field_double(&self,name:&str,sig:&str) -> Result<f64,()> {
         self._get_double_field(name, sig).or(self.get_class().get_static_double_field(name, sig))
     }
+    
 
         // set fields
 

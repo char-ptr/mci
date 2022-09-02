@@ -18,7 +18,12 @@ macro_rules! unchecked_jnice {
         })()
     };
 }
-
+#[macro_export]
+macro_rules! jset {
+    ($obj:ident.$inner:tt = $val:expr) => {
+        obj.set_field
+    };
+}
 
 #[macro_export]
 macro_rules! catch {

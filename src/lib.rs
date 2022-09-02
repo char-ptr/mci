@@ -35,11 +35,8 @@ fn main_thread() -> Result<(), String> {
             println!("is_64bit = {:?}",is_64bit);
         }
         println!("q");
-        // let class_loader_field_id = Launch.get_static_field_id("classLoader", "Lnet/minecraft/launchwrapper/LaunchClassLoader;");
-        // if let JFieldTypesRet::Object(class_loader) = JFieldTypes::Object.get_field(&jenv, &Launch, class_loader_field_id) {
-        //     println!("class_loader: {:?}", class_loader.ptr);
-        // }
-        // class_loader.
+
+        
 
     }
 

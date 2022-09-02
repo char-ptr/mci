@@ -1,10 +1,57 @@
-use std::{sync::{RwLock, Arc}, io::Write, collections::HashMap};
+use std::{sync::{RwLock, Arc}, io::Write, collections::{HashMap, HashSet}};
 
 use rand::Rng;
 
-use crate::{maps::{SigMappings, SigMod}, type_sig::{sanitize, parse_sig_f, parse_sig_m}};
+use crate::{maps::{SigMappings, SigMod, SigField, SigMethod}, type_sig::{sanitize, parse_sig_f, parse_sig_m}};
 
-
+#[inline]
+pub fn get_class_code(name:&str,sig:&str,body:&str) -> String {
+    format!(
+        "struct {class_name}<'a> {{
+            inner: jni::object::JObject<'a>
+        }}
+        impl<'a> {class_name}<'a> {{
+            const class_sig: &str = \"{class_sig}\";
+    
+            {class_body}
+        }}",
+        class_name = name,
+        class_sig = sig,
+        class_body = body
+    )
+}
+#[inline]
+pub fn get_field_code(f:&SigField,from:&str,rust_type:&str,java_type:&str) -> String {
+    format!(
+        "pub fn get_{field_name}(&self) -> Result<{rust_type},()> {{
+            self.inner.get_field_{java_type}::<{rust_type}>(\"{from}\",\"{field_sig}\");
+        }}
+        pub fn s_get_{field_name}(env:&'a jni::env::Jenv<'a>) -> Result<{rust_type},()> {{
+            let class = env.find_class(Self::class_sig);
+            class.get_static_{java_type}_field::<{rust_type}>(\"{from}\",\"{field_sig}\")
+        }}",
+        field_name = f.to,
+        field_sig = f.type_,
+    )
+}
+#[inline]
+pub fn get_method_code(f:&SigMethod,from:&str,rust_type:&str,java_type:&str,args:Vec<(String,String)>) -> String {
+    format!(
+        "pub fn call_{method_name}(&self,{args}) -> Result<{rust_type},()> {{
+            let args = vec![{args_name}];
+            self.inner.call_{java_type}_method::<{rust_type}>(\"{from}\",\"{method_sig}\")
+        }}
+        pub fn s_call_{method_name}(env:&'a jni::env::Jenv<'a>,{args}) -> Result<{rust_type},()> {{
+            let args=vec![{args_name}];
+            let class = env.find_class(Self::__map_sig);
+            class.call_static_{java_type}_method(\"{from}\",\"{method_sig}\")
+        }}",
+        method_name = f.to,
+        method_sig = f.type_,
+        args = args.iter().map(|(name,type_)| format!("{}:{}",name,type_)).collect::<Vec<String>>().join(", "),
+        args_name = args.iter().map(|(name,_)| name.clone()).collect::<Vec<String>>().join(", "),
+    )
+}
 
 pub fn generate_rs<W:Write>(yarn_maps : Arc<RwLock<SigMappings>>,tiny_maps : Arc<RwLock<SigMappings>>,modul:&SigMod,writer:&mut W,stk:&str) -> Result<(),()> {
 
@@ -35,137 +82,37 @@ pub fn generate_rs<W:Write>(yarn_maps : Arc<RwLock<SigMappings>>,tiny_maps : Arc
             let actual_class = tinm.sig_to_x.get(&c.from).ok_or(())?;
             println!("{:?}",actual_class);
             let class_name = sanitize(&c.to);
-            writer.write_all(format!("pub struct r#{}<'a> {{\n",class_name).as_bytes()).unwrap();
-            writer.write_all(b"pub inner : jni::object::JObject<'a>,\n").unwrap();
-            // writer.write_all(b"}\n").unwrap();
-            writer.write_all(format!("impl<'a> From<jni::object::JObject<'a>> for {}<'a> {{{}}}\n",class_name,stringify!{
-                fn from(x:jni::object::JObject<'a>) -> Self {
-                    Self {
-                        inner: x,
+
+            let mut body = String::new();
+
+            // fields
+            for field in &c.fields {
+                if let Some(tinyf) = tinm.sig_to_x.get(&field.from) {
+                    let (rust_type,java_type,is_jclass) = parse_sig_f(&field.type_,&Arc::clone(&yarn_maps).read().unwrap().sig_to_x);
+
+                    body.push_str(&get_field_code(field, tinyf.get_from(), &sanitize(&rust_type), &java_type))
+
+                }
+            }
+            // methods
+            for method in &c.methods {
+                if let Some(tinyf) = tinm.sig_to_x.get(&method.from) {
+                    let method_data = parse_sig_m(&method.type_,&Arc::clone(&yarn_maps).read().unwrap().sig_to_x);
+
+                    let mut arg_s = Vec::<(String,String)>::new();
+                    for (i,str) in method_data.args.iter().enumerate() {
+                        let name = sanitize(&method.args.get(i).unwrap_or(&format!("unknwnarg_{}",rand::thread_rng().gen::<u32>())));
+                        arg_s.push((format!("r#a{name}"),format!("{}",sanitize(&str.0))));
                     }
-                }
-            }).as_bytes()).unwrap();
-            writer.write_all(format!("impl<'a> {}<'a> {{\n",sanitize(&c.to)).as_bytes()).unwrap();
-            writer.write_all(format!("const __map_sig : &str = \"{}\";\n",actual_class.get_from()).as_bytes()).unwrap();
-            for f in &c.fields {
-                let (fty,jty,jclass) = parse_sig_f(&f.type_,&Arc::clone(&yarn_maps).read().unwrap().sig_to_x);
-                let fty = sanitize(&fty);
-                let is_jobj_t = jty.contains("Object");
-                if let Some(actual_field) = tinm.sig_to_x.get(&f.from) {
-                    
-                    let code = if is_jobj_t {
-                        let non_static_code = format!("self.inner.get_field_object::<{typ}>(\"{field_name}\",\"{field_sig}\")",
-                            typ = fty,
-                            field_name = actual_field.get_from(),
-                            field_sig = f.type_,
-                        );
-                        let static_code = format!("let class = env.find_class(Self::__map_sig);class.get_static_object_field::<{typ}>(\"{field_name}\",\"{field_sig}\")",
-                            typ = fty,
-                            field_name = actual_field.get_from(),
-                            field_sig = f.type_,
-                        );
-                        format!(
-                            "
-pub fn get_{fn_name}(&self) -> Result<{typ},()> {non_static_code}
-pub fn s_get_{fn_name}(env:&'a jni::env::Jenv<'a>) -> Result<{typ},()> {static_code}
-                            ",
-                            fn_name=sanitize(&f.to),
-                            typ=fty,
-                        )
-                    } else {
-                        let non_static_code = format!("self.inner.get_field_{jtype}(\"{field_name}\",\"{field_sig}\")",
-                            field_name = actual_field.get_from(),
-                            field_sig = f.type_,
-                            jtype = jty.to_lowercase(),
-                        );
-                        let static_code = format!("let class = env.find_class(Self::__map_sig);class.get_static_{jtype}_field(\"{field_name}\",\"{field_sig}\")",
-                            jtype = jty.to_lowercase(),
-                            field_name = actual_field.get_from(),
-                            field_sig = f.type_,
-                        );
-                        format!(
-                            "
-pub fn get_{fn_name}(&self) -> Result<{typ},()> {non_static_code}
-pub fn s_get_{fn_name}(env:&'a jni::env::Jenv<'a>) -> Result<{typ},()> {static_code}
-                            ",
-                            fn_name=sanitize(&f.to),
-                            typ=fty,
-                        )
-                    };
 
-                    writer.write_all(code.as_bytes()).unwrap();
+                    body.push_str(&get_method_code(method, tinyf.get_from(), &sanitize(&method_data.ret.0), &method_data.ret.1,arg_s))
 
                 }
-                // writer.write_all(format!("/* {ty} = {sig} */\npub fn r#set_{}(&self,val : {ty}) -> () {{}} \n",sanitize(&f.to),ty=fty,sig=f.type_).as_bytes()).unwrap();
             }
-            for m in &c.methods {
-                let method_parse_sig = parse_sig_m(&m.type_,&Arc::clone(&yarn_maps).read().unwrap().sig_to_x);
-                // println!("{:?} | {}",method_parse_sig,m.sig);
-                let mut arg_s = Vec::<(String,String)>::new();
-                for (i,str) in method_parse_sig.args.iter().enumerate() {
-                    let name = sanitize(&m.args.get(i).unwrap_or(&format!("unknwnarg_{}",rand::thread_rng().gen::<u32>())));
-                    arg_s.push((format!("r#a{name}"),format!("{}",sanitize(&str.0))));
-                }
-                let is_jobj_t = method_parse_sig.ret.1.contains("Object");
 
-                if let Some(actual_method) = tinm.sig_to_x.get(&m.from) {
-                    let code = if is_jobj_t {
-                        let non_static_code = format!("let args = vec![{args}];self.inner.call_object_method::<{typ}>(\"{field_name}\",\"{field_sig}\")",
-                            typ = method_parse_sig.ret.0,
-                            field_name = actual_method.get_from(),
-                            field_sig = m.type_,
-                            args=arg_s.iter().map(|(a,b)| format!("{}.into()",a)).collect::<Vec<String>>().join(", "),
-                        );
-                        let static_code = format!("let args = vec![{args}];let class = env.find_class(Self::__map_sig);class.call_static_object_method::<{typ}>(\"{field_name}\",\"{field_sig}\")",
-                            typ = method_parse_sig.ret.0,
-                            field_name = actual_method.get_from(),
-                            field_sig = m.type_,
-                            args=arg_s.iter().map(|(a,b)| format!("{}.into()",a)).collect::<Vec<String>>().join(", "),
-                        );
-                        format!(
-                            "
-pub fn call_{fn_name}(&self,{args}) -> Result<{typ},()> {non_static_code}
-pub fn s_call_{fn_name}(env:&'a jni::env::Jenv<'a>,{args}) -> Result<{typ},()> {static_code}
-                            ",
-                            fn_name=sanitize(&m.to),
-                            typ=method_parse_sig.ret.0,
-                            args=arg_s.iter().map(|(a,b)| format!("{} : {}",a,b)).collect::<Vec<String>>().join(", "),
-                        )
-                    } else {
-                        let non_static_code = format!("let args=vec![{args}];self.inner.call_{jtype}_method(\"{field_name}\",\"{field_sig}\")",
-                            field_name = actual_method.get_from(),
-                            field_sig = m.type_,
-                            jtype = method_parse_sig.ret.1.to_lowercase(),
-                            args=arg_s.iter().map(|(a,b)| format!("{}.into()",a)).collect::<Vec<String>>().join(", "),
+            let class_code = get_class_code(&class_name, &sanitize( &actual_class.get_from()),&body);
 
-                        );
-                        let static_code = format!("let args=vec![{args}];let class = env.find_class(Self::__map_sig);class.call_static_{jtype}_method(\"{field_name}\",\"{field_sig}\")",
-                            jtype = method_parse_sig.ret.1.to_lowercase(),
-                            field_name = actual_method.get_from(),
-                            field_sig = m.type_,
-                            args=arg_s.iter().map(|(a,b)| format!("{}.into()",a)).collect::<Vec<String>>().join(", "),
-                        );
-                        format!(
-                            "
-pub fn call_{fn_name}(&self,{args}) -> Result<{typ},()> {non_static_code}
-pub fn s_call_{fn_name}(env:&'a jni::env::Jenv<'a>,{args}) -> Result<{typ},()> {static_code}
-                            ",
-                            fn_name=sanitize(&m.to),
-                            typ=method_parse_sig.ret.0,
-                            args=arg_s.iter().map(|(a,b)| format!("{} : {}",a,b)).collect::<Vec<String>>().join(", "),
-
-                        )
-                    };
-
-                    writer.write_all(code.as_bytes()).unwrap();
-
-                }
-
-
-                // writer.write_all(format!("pub fn r#{}({}) -> {} {{ }}\n",sanitize(&m.to),arg_s,method_parse_sig.ret.0).as_bytes()).unwrap();
-            }
-            writer.write_all(b"}\n").unwrap();
-            // return Err(());
+            writer.write_all(class_code.as_bytes()).unwrap();
         },
     }
     Ok(())

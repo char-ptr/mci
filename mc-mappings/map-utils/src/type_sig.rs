@@ -1,7 +1,7 @@
 use std::{str::FromStr, collections::HashMap};
 
 use crate::maps::SigType;
-static ok_chars: [char;3] = [':','<','>'];
+static ok_chars: [char;6] = [':','<','>','\'',',',' '];
 
 pub fn sanitize(mut s:&str) -> String {
     let mut sn = String::from_str(s).unwrap();
@@ -52,7 +52,7 @@ pub fn resolve_srg(srg:&str,sig2class:&HashMap<String, SigType>) -> String {
                         return "".to_string();
                     }
                     base.push_str(&format!("::{}",cla.to));
-                    format!("crate::{}",base)
+                    format!("crate::{}<'a>",base)
                 },
                 SigType::Field(_) => "".to_string(),
                 SigType::Method(_) => "".to_string(),
@@ -107,7 +107,7 @@ pub fn parse_sig_f(sig:&str,sig2class:&HashMap<String, SigType>) -> (String,Stri
             // println!("jcs {} {}",buf,resolved);
             if resolved.is_empty() {
                 java_ret = "Object".to_string();
-                ret.push_str("jni::object::JObject");
+                ret.push_str("jni::object::JObject<'a>");
             } else {
                 
                 java_ret = "Object".to_string();
@@ -122,7 +122,7 @@ pub fn parse_sig_f(sig:&str,sig2class:&HashMap<String, SigType>) -> (String,Stri
     for _ in 0..vec_count {
         let inside = ret;
         java_ret = "Object".to_string();
-        ret = format!("jni::jarray::JArray<{}>",inside);
+        ret = format!("jni::jarray::JArray<'a, {}>",inside);
     }
     if ret.is_empty() {
         // println!("empty {}",sig);
@@ -137,7 +137,8 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
     let mut in_args = false;
     let mut begin = false;
     let mut jclass_search = false;
-    let mut arr_start = false;
+    let mut vec_count = 0;
+    let mut vec_valid = true;
     let mut current_arg = String::new();
     let mut current_ret = String::new();
     for char in sig.chars() {
@@ -156,15 +157,25 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
                         current_arg = res;
                     } else {
                         current_ret = "Object".to_string();
-                        current_arg = "jni::object::JObject".to_string();
+                        current_arg = "jni::object::JObject<'a>".to_string();
                     }
                 }
                 if in_args {
+                    for _ in 0..vec_count {
+                        let inside = current_arg;
+                        current_ret = "Object".to_string();
+                        current_arg = format!("jni::jarray::JArray<'a, {}>",inside);
+                    }
                     parsed.args.push((current_arg.clone(),current_ret.clone()));
                     current_arg.clear();
                 } else {
                     if current_arg != "()" {
                         current_arg = sanitize(&current_arg)
+                    }
+                    for _ in 0..vec_count {
+                        let inside = current_arg;
+                        current_ret = "Object".to_string();
+                        current_arg = format!("jni::jarray::JArray<'a, {}>",inside);
                     }
                     parsed.ret = (current_arg.clone(),current_ret.clone());
                     current_arg.clear();
@@ -186,13 +197,10 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
                     current_arg.push(char);
                }
             }
-            '[' => {arr_start=true}
-            ']' => {
-                if arr_start {
-                    arr_start = false;
-                    let ca = current_arg.clone();
-                    current_ret = "Object".to_string();
-                    current_arg = format!("jni::jarray::JArray<{}>",ca);
+            '[' => {
+                if vec_valid {
+                    vec_count += 1;
+                    begin=true;
                 }
             }
             _=>{
@@ -200,10 +208,15 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
                     if jclass_search {
                         current_arg.push(char);
                     } else {
-                        let (sig_parse,jav) = parse_sig_basic(char);
+                        let (mut sig_parse,mut jav) = parse_sig_basic(char);
                         if sig_parse.is_empty() {
 
                         } else {
+                            for _ in 0..vec_count {
+                                let inside = sig_parse;
+                                jav = "Object".to_string();
+                                sig_parse = format!("jni::jarray::JArray<'a, {}>",inside);
+                            }
                             parsed.args.push((sig_parse,jav));
                             current_arg.clear();
                         }
@@ -219,10 +232,15 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
     if jclass_search {
         // println!("JCSEARRRR!{}",current_arg);
     } else if current_arg.trim().len() == 1 {
-        let (sigparse,jav) = parse_sig_basic(current_arg.trim().chars().next().unwrap());
+        let (mut sigparse,mut jav) = parse_sig_basic(current_arg.trim().chars().next().unwrap());
         if sigparse.is_empty() {
             // println!("QQQAAARR!{} | parse = {}",current_arg,sigparse)
         } else {
+            for _ in 0..vec_count {
+                let inside = sigparse;
+                jav = "Object".to_string();
+                sigparse = format!("jni::jarray::JArray<'a, {}>",inside);
+            }
             parsed.ret = (sigparse,jav);
         }
     }

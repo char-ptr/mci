@@ -28,9 +28,15 @@ fn main() {
     let mut mod_stk = vec!["root".to_string()];
 
     let sigs = Arc::new(RwLock::new(SigMappings::default()));
+    let tiny_sigs = Arc::new(RwLock::new(SigMappings::default()));
     let sig = Arc::clone(&sigs);
+    let tiny_sig = Arc::clone(&tiny_sigs);
     let mut mdstks = vec!["root".to_string()];
     let mut mods = {sig.write().unwrap().mods.clone()};
+
+    let mut tiny_file = std::fs::File::open(concat!("./mappings/tiny/", include!("./version.txt"), ".tiny")).expect("unable to get tf");
+
+    map_utils::maps::tiny::parse_tiny_mappings(&mut tiny_file, Arc::clone(&tiny_sig));
 
     run_dir(&start_path, Arc::clone(&sigs),&mut mods, &mut mdstks);
     println!("done parsing");
@@ -41,9 +47,9 @@ fn main() {
             (*sigs.write().unwrap()).mods = mods.clone();
         }
 
-        // generate_rs(Arc::clone(&sigs), &mods, &mut map_to_rs,"");
+        generate_rs(Arc::clone(&sigs),Arc::clone(&tiny_sig), &mods, &mut map_to_rs, "");
 
-        println!("done")
+        println!("done");
 
         // let sigs = sigs.read().unwrap();
         // // println!("{:?}",sigs);

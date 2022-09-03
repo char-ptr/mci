@@ -28,7 +28,7 @@ fn main() {
             (*sigs.write().unwrap()).mods = mods.clone();
         }
 
-        generate_rs(Arc::clone(&sigs),Arc::clone(&tiny_sig), &mods, &mut map_to_rs, "");
+        generate_rs(Arc::clone(&sigs),Arc::clone(&tiny_sig), &mods, &mut map_to_rs, "",&mut vec![]);
 
         println!("done");
 

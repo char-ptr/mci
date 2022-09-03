@@ -1,7 +1,7 @@
 use std::{str::FromStr, collections::HashMap};
 
 use crate::maps::SigType;
-static ok_chars: [char;6] = [':','<','>','\'',',',' '];
+static ok_chars: [char;8] = [':','<','>','\'',',',' ','(',')'];
 
 pub fn sanitize(mut s:&str) -> String {
     let mut sn = String::from_str(s).unwrap();

@@ -1,4 +1,4 @@
-use std::{path::PathBuf, env};
+use std::{path::PathBuf, env, fs};
 
 fn main() {
 
@@ -6,12 +6,19 @@ fn main() {
 
     println!("cargo:rustc-link-search={}\\lib",jdk_location);
     println!("cargo:rustc-link-lib=jvm");
-    println!("cargo:rerun-if-changed=wrapper.h");
+    println!("cargo:rerun-if-env-changed=JAVA_HOME");
+
+    { // fix jni jni_md location cuz it's fucked
+        fs::copy(
+            format!("{}\\include\\win32\\jni_md.h",jdk_location), 
+            format!("{}\\include\\jni_md.h",jdk_location)).expect("Failed to copy jni_md.h");
+    }
+
 
     let bindings = bindgen::Builder::default()
     // The input header we would like to generate
     // bindings for.
-    .header(format!("{}\\include\\win32\\jni_md.h",jdk_location))
+    .header(format!("{}\\include\\jni_md.h",jdk_location))
     .header(format!("{}\\include\\jni.h",jdk_location))
     .header(format!("{}\\include\\jvmti.h",jdk_location))
     // Tell cargo to invalidate the built crate whenever any of the
@@ -28,4 +35,7 @@ fn main() {
         // .write_to_file("./binds.rs")
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
+    {
+        fs::remove_file(format!("{}\\include\\jni_md.h",jdk_location)).expect("Failed to clean up jni_md.h");
+    }
 }

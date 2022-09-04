@@ -8,7 +8,7 @@ pub struct JArray<'a> {
     pub inner:  Vec<JValue<'a>>,
 }
 
-impl<'a,T: From<JObject<'a>>> From<JObject<'a>> for JArray<'a> {
+impl<'a> From<JObject<'a>> for JArray<'a> {
     fn from(obj : JObject<'a>) -> Self {
         let length = unchecked_jnic!(obj.env.ptr,GetArrayLength, obj.ptr) as usize;
 
@@ -26,7 +26,7 @@ impl<'a> Deref for JArray<'a> {
         &self.inner
     }
 }
-impl<'a,T> DerefMut for JArray<'a> {
+impl<'a> DerefMut for JArray<'a> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }

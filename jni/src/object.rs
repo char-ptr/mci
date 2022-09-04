@@ -255,6 +255,9 @@ impl<'a> JObject<'a> {
     pub fn call_char_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<char,()> {
         self._call_char_method(name, sig, args).or(self.get_class().call_static_char_method(name, sig, args))
     }
+    pub fn call_byte_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i8,()> {
+        self._call_byte_method(name, sig, args).or(self.get_class().call_static_byte_method(name, sig, args))
+    }
     pub fn call_short_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i16,()> {
         self._call_short_method(name, sig, args).or(self.get_class().call_static_short_method(name, sig, args))
     }
@@ -281,8 +284,8 @@ impl<'a> From<&JObject<'a>> for JObject<'a> {
         Self::new(x.ptr, x.env)
     }
 }
-impl<'a,T> From<JArray<'a,T>> for JObject<'a> {
-    fn from(x: JArray<'a,T>) -> Self {
+impl<'a> From<JArray<'a>> for JObject<'a> {
+    fn from(x: JArray<'a>) -> Self {
         Self::from(&x.ptr)
     }
 }

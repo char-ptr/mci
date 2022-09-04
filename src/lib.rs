@@ -31,7 +31,7 @@ fn main_thread() -> Result<(), String> {
         if let Ok(obj) = minecraft_client.call_static_object_method::<JObject>("G", "()Leev;",&vec![]) {
             println!("oke {:?}",obj.ptr);
 
-            let is_64bit = obj.get_field_bool("ac", "Z");
+            let is_64bit = obj.get_field_boolean("ac", "Z");
             println!("is_64bit = {:?}",is_64bit);
         }
         println!("q");

@@ -84,8 +84,8 @@ impl JValue<'_> {
     }
 }
 
-impl<'a,T> From<JArray<'a,T>> for JValue<'a> {
-    fn from(obj: JArray<'a,T>) -> Self {
+impl<'a> From<JArray<'a>> for JValue<'a> {
+    fn from(obj: JArray<'a>) -> Self {
         Self::JObject(obj.ptr)
     }
 }

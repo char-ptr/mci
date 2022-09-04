@@ -27,7 +27,7 @@ pub struct SigParseM {
 pub fn parse_sig_basic(ch:char) -> (String,String) {
     match ch {
         'Z' => ("bool".to_string(),"Boolean".to_string()),
-        'B' => ("u8".to_string(),"Byte".to_string()),
+        'B' => ("i8".to_string(),"Byte".to_string()),
         'C' => ("char".to_string(),"Char".to_string()),
         'S' => ("i16".to_string(),"Short".to_string()),
         'I' => ("i32".to_string(),"Int".to_string()),
@@ -122,7 +122,7 @@ pub fn parse_sig_f(sig:&str,sig2class:&HashMap<String, SigType>) -> (String,Stri
     for _ in 0..vec_count {
         let inside = ret;
         java_ret = "Object".to_string();
-        ret = format!("jni::jarray::JArray<'a, {}>",inside);
+        ret = format!("jni::jarray::JArray<'a>");
     }
     if ret.is_empty() {
         // println!("empty {}",sig);
@@ -164,7 +164,7 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
                     for _ in 0..vec_count {
                         let inside = current_arg;
                         current_ret = "Object".to_string();
-                        current_arg = format!("jni::jarray::JArray<'a, {}>",inside);
+                        current_arg = format!("jni::jarray::JArray<'a>");
                     }
                     parsed.args.push((current_arg.clone(),current_ret.clone()));
                     current_arg.clear();
@@ -175,7 +175,7 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
                     for _ in 0..vec_count {
                         let inside = current_arg;
                         current_ret = "Object".to_string();
-                        current_arg = format!("jni::jarray::JArray<'a, {}>",inside);
+                        current_arg = format!("jni::jarray::JArray<'a>");
                     }
                     parsed.ret = (current_arg.clone(),current_ret.clone());
                     current_arg.clear();
@@ -215,7 +215,7 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
                             for _ in 0..vec_count {
                                 let inside = sig_parse;
                                 jav = "Object".to_string();
-                                sig_parse = format!("jni::jarray::JArray<'a, {}>",inside);
+                                sig_parse = format!("jni::jarray::JArray<'a>");
                             }
                             parsed.args.push((sig_parse,jav));
                             current_arg.clear();
@@ -239,7 +239,7 @@ pub fn parse_sig_m(sig:&str,sig2class:&HashMap<String, SigType>) -> SigParseM {
             for _ in 0..vec_count {
                 let inside = sigparse;
                 jav = "Object".to_string();
-                sigparse = format!("jni::jarray::JArray<'a, {}>",inside);
+                sigparse = format!("jni::jarray::JArray<'a>");
             }
             parsed.ret = (sigparse,jav);
         }

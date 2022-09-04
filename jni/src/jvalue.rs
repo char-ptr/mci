@@ -1,6 +1,6 @@
 use jdk_sys::jvalue;
 
-use crate::object::JObject;
+use crate::{object::JObject, jarray::JArray};
 
 pub enum JValue<'a> {
     JBoolean(bool),
@@ -84,6 +84,11 @@ impl JValue<'_> {
     }
 }
 
+impl<'a,T> From<JArray<'a,T>> for JValue<'a> {
+    fn from(obj: JArray<'a,T>) -> Self {
+        Self::JObject(obj.ptr)
+    }
+}
 
 
 impl<'a> From<JObject<'a>> for JValue<'a> {

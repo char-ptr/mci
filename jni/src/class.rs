@@ -56,7 +56,7 @@ impl<'a> JClass<'a> {
 
         Ok(T::from(JObject::new(obj,self.env)))
     }
-    pub fn call_static_bool_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<bool,()> {
+    pub fn call_static_boolean_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<bool,()> {
         let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
         let mid=  self.get_static_method_id(name,sig)?;
 
@@ -104,6 +104,12 @@ impl<'a> JClass<'a> {
 
         unchecked_jnice!(self.env.ptr,CallStaticDoubleMethodA, self.ptr, mid,args.as_ptr() )
     }
+    pub fn call_static_void_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<(),()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_static_method_id(name,sig)?;
+
+        unchecked_jnice!(self.env.ptr,CallStaticVoidMethodA, self.ptr, mid,args.as_ptr() )
+    }
 
     // static fields
 
@@ -120,7 +126,7 @@ impl<'a> JClass<'a> {
         Ok(T::from(JObject::new(obj,self.env)))
     }
 
-    pub fn get_static_bool_field(&self,name:&str,sig:&str) -> Result<bool,()> {
+    pub fn get_static_boolean_field(&self,name:&str,sig:&str) -> Result<bool,()> {
         let fid = self.get_static_field_id(name,sig)?;
         Ok(unchecked_jnice!(self.env.ptr,GetStaticBooleanField, self.ptr, fid)? == JNI_TRUE as u8)
     }
@@ -160,7 +166,7 @@ impl<'a> JClass<'a> {
         unchecked_jnice!(self.env.ptr,SetStaticObjectField, self.ptr, fid,new_value.ptr)
     }
 
-    pub fn set_static_bool_field(&self,name:&str,sig:&str, new_value:bool) -> Result<(),()> {
+    pub fn set_static_boolean_field(&self,name:&str,sig:&str, new_value:bool) -> Result<(),()> {
         let fid = self.get_static_field_id(name,sig)?;
         unchecked_jnice!(self.env.ptr,SetStaticBooleanField, self.ptr, fid,new_value as u8)
     }
@@ -192,6 +198,7 @@ impl<'a> JClass<'a> {
         let fid = self.get_static_field_id(name,sig)?;
         unchecked_jnice!(self.env.ptr,SetStaticDoubleField, self.ptr, fid,new_value)
     }
+    
 
 
     // util

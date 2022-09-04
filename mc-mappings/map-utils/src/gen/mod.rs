@@ -10,6 +10,18 @@ pub fn get_class_code(name:&str,sig:&str,body:&str) -> String {
         "pub struct {class_name}<'a> {{
             pub inner: jni::object::JObject<'a>
         }}
+        impl<'a> From<jni::object::JObject<'a>> for {class_name}<'a> {{
+            fn from(obj: jni::object::JObject<'a>) -> Self {{
+                Self {{ inner: obj }}
+            }}
+        }} 
+        impl<'a> From<{class_name}<'a>> for jni::jvalue::JValue<'a> {{
+            fn from(obj: {class_name}<'a>) -> jni::jvalue::JValue<'a> {{
+                jni::jvalue::JValue::JObject(obj.inner)
+            }}
+
+        }}
+        
         impl<'a> {class_name}<'a> {{
             const class_sig: &str = \"{class_sig}\";
     
@@ -22,32 +34,43 @@ pub fn get_class_code(name:&str,sig:&str,body:&str) -> String {
 }
 #[inline]
 pub fn get_field_code(f:&SigField,field_name:&str,from:&str,rust_type:&str,java_type:&str) -> String {
+
+    let method_temp = if java_type.contains("object") {
+        format!("::<{rust_type}>")
+    } else {
+        "".to_string()
+    };
     format!(
         "pub fn get_{field_name}(&self) -> Result<{rust_type},()> {{
-            self.inner.get_field_{java_type}::<{rust_type}>(\"{from}\",\"{field_sig}\");
+            self.inner.get_field_{java_type}{method_temp}(\"{from}\",\"{field_sig}\")
         }}
         pub fn s_get_{field_name}(env:&'a jni::env::Jenv<'a>) -> Result<{rust_type},()> {{
-            let class = env.find_class(Self::class_sig);
-            class.get_static_{java_type}_field::<{rust_type}>(\"{from}\",\"{field_sig}\")
+            let class = env.find_class(Self::class_sig)?;
+            class.get_static_{java_type}_field{method_temp}(\"{from}\",\"{field_sig}\")
         }}",
         field_sig = f.type_,
     )
 }
 #[inline]
 pub fn get_method_code(f:&SigMethod,method_name:&str,from:&str,rust_type:&str,java_type:&str,args:Vec<(String,String)>) -> String {
+    let method_temp = if java_type.contains("object") {
+        format!("::<{rust_type}>")
+    } else {
+        "".to_string()
+    };
     format!(
         "pub fn call_{method_name}(&self,{args}) -> Result<{rust_type},()> {{
             let args = vec![{args_name}];
-            self.inner.call_{java_type}_method::<{rust_type}>(\"{from}\",\"{method_sig}\")
+            self.inner.call_{java_type}_method{method_temp}(\"{from}\",\"{method_sig}\",&args)
         }}
         pub fn s_call_{method_name}(env:&'a jni::env::Jenv<'a>,{args}) -> Result<{rust_type},()> {{
             let args=vec![{args_name}];
-            let class = env.find_class(Self::__map_sig);
-            class.call_static_{java_type}_method(\"{from}\",\"{method_sig}\")
+            let class = env.find_class(Self::class_sig)?;
+            class.call_static_{java_type}_method{method_temp}(\"{from}\",\"{method_sig}\",&args)
         }}",
         method_sig = f.type_,
         args = args.iter().map(|(name,type_)| format!("{}:{}",name,type_)).collect::<Vec<String>>().join(", "),
-        args_name = args.iter().map(|(name,_)| name.clone()).collect::<Vec<String>>().join(", "),
+        args_name = args.iter().map(|(name,_)| format!("jni::jvalue::JValue::from({name})")).collect::<Vec<String>>().join(", "),
     )
 }
 
@@ -105,7 +128,13 @@ pub fn generate_rs<W:Write>(yarn_maps : Arc<RwLock<SigMappings>>,tiny_maps : Arc
                         field.to.clone()
                     };
 
-                    body.push_str(&get_field_code(field,&field_name, tinyf.get_from(), &sanitize(&rust_type), &java_type))
+                    body.push_str(&get_field_code(
+                        field,
+                        &field_name, 
+                        tinyf.get_from(), 
+                        &sanitize(&rust_type), 
+                        &java_type.to_lowercase()
+                    ))
 
                 }
             }
@@ -127,7 +156,14 @@ pub fn generate_rs<W:Write>(yarn_maps : Arc<RwLock<SigMappings>>,tiny_maps : Arc
                         method.to.clone()
                     };
 
-                    body.push_str(&get_method_code(method,&method_name, tinyf.get_from(), &sanitize(&method_data.ret.0), &method_data.ret.1,arg_s))
+                    body.push_str(&get_method_code(
+                        method,
+                        &method_name, 
+                        tinyf.get_from(), 
+                        &sanitize(&method_data.ret.0), 
+                        &method_data.ret.1.to_lowercase(),
+                        arg_s
+                    ))
 
                 }
             }

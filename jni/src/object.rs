@@ -1,7 +1,7 @@
 use std::{ffi::CString, ptr, sync::Arc};
 
 use jdk_sys::{jfieldID, jmethodID, jvalue, JNI_TRUE};
-use crate::{unchecked_jnic, unchecked_jnice, jvalue::JValue, class::JClass};
+use crate::{unchecked_jnic, unchecked_jnice, jvalue::JValue, class::JClass, jarray::JArray};
 use super::env::Jenv;
 
 #[derive(Debug, Clone)]
@@ -39,7 +39,7 @@ impl<'a> JObject<'a> {
         Ok(T::from(JObject::new(obj,self.env)))
     }
 
-    fn _get_bool_field(&self,name:&str,sig:&str) -> Result<bool,()> {
+    fn _get_boolean_field(&self,name:&str,sig:&str) -> Result<bool,()> {
         let fid = self.get_class().get_field_id(name,sig)?;
         Ok(unchecked_jnice!(self.env.ptr,GetBooleanField, self.ptr, fid)? == JNI_TRUE as u8)
     }
@@ -79,7 +79,7 @@ impl<'a> JObject<'a> {
         unchecked_jnice!(self.env.ptr,SetObjectField, self.ptr, fid,new_value.ptr)
     }
 
-    pub fn _set_bool_field(&self,name:&str,sig:&str, new_value:bool) -> Result<(),()> {
+    pub fn _set_boolean_field(&self,name:&str,sig:&str, new_value:bool) -> Result<(),()> {
         let fid = self.get_class().get_field_id(name,sig)?;
         unchecked_jnice!(self.env.ptr,SetBooleanField, self.ptr, fid,new_value as u8)
     }
@@ -128,7 +128,7 @@ impl<'a> JObject<'a> {
 
         Ok(T::from(JObject::new(obj,self.env)))
     }
-    fn _call_bool_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<bool,()> {
+    fn _call_boolean_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<bool,()> {
         let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
         let mid=  self.get_class().get_method_id(name,sig)?;
 
@@ -176,14 +176,20 @@ impl<'a> JObject<'a> {
 
         unchecked_jnice!(self.env.ptr,CallDoubleMethodA, self.ptr, mid,args.as_ptr() )
     }
+    fn _call_void_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<(),()> {
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+        let mid=  self.get_class().get_method_id(name,sig)?;
+
+        unchecked_jnice!(self.env.ptr,CallVoidMethodA, self.ptr, mid,args.as_ptr() )
+    }
 
     // get fields
 
     pub fn get_field_object<T:From<JObject<'a>>>(&self,name:&str,sig:&str) -> Result<T,()> {
         self._get_object_field(name, sig).or(self.get_class().get_static_object_field(name, sig))
     }
-    pub fn get_field_bool(&self,name:&str,sig:&str) -> Result<bool,()> {
-        self._get_bool_field(name, sig).or(self.get_class().get_static_bool_field(name, sig))
+    pub fn get_field_boolean(&self,name:&str,sig:&str) -> Result<bool,()> {
+        self._get_boolean_field(name, sig).or(self.get_class().get_static_boolean_field(name, sig))
     }
     pub fn get_field_byte(&self,name:&str,sig:&str) -> Result<i8,()> {
         self._get_byte_field(name, sig).or(self.get_class().get_static_byte_field(name, sig))
@@ -213,8 +219,8 @@ impl<'a> JObject<'a> {
     pub fn set_field_object(&self,name:&str,sig:&str,new_value:&'a JObject<'a>) -> Result<(),()> {
         self._set_object_field(name, sig, new_value).or(self.get_class().set_static_object_field(name, sig, new_value))
     }
-    pub fn set_field_bool(&self,name:&str,sig:&str,new_value:bool) -> Result<(),()> {
-        self._set_bool_field(name, sig, new_value).or(self.get_class().set_static_bool_field(name, sig, new_value))
+    pub fn set_field_boolean(&self,name:&str,sig:&str,new_value:bool) -> Result<(),()> {
+        self._set_boolean_field(name, sig, new_value).or(self.get_class().set_static_boolean_field(name, sig, new_value))
     }
     pub fn set_field_byte(&self,name:&str,sig:&str,new_value:i8) -> Result<(),()> {
         self._set_byte_field(name, sig, new_value).or(self.get_class().set_static_byte_field(name, sig, new_value))
@@ -243,8 +249,8 @@ impl<'a> JObject<'a> {
     pub fn call_object_method<T:From<JObject<'a>>>(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<T,()> {
         self._call_object_method(name, sig, args).or(self.get_class().call_static_object_method(name, sig, args))
     }
-    pub fn call_bool_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<bool,()> {
-        self._call_bool_method(name, sig, args).or(self.get_class().call_static_bool_method(name, sig, args))
+    pub fn call_boolean_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<bool,()> {
+        self._call_boolean_method(name, sig, args).or(self.get_class().call_static_boolean_method(name, sig, args))
     }
     pub fn call_char_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<char,()> {
         self._call_char_method(name, sig, args).or(self.get_class().call_static_char_method(name, sig, args))
@@ -264,11 +270,19 @@ impl<'a> JObject<'a> {
     pub fn call_double_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<f64,()> {
         self._call_double_method(name, sig, args).or(self.get_class().call_static_double_method(name, sig, args))
     }
+    pub fn call_void_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<(),()> {
+        self._call_void_method(name, sig, args).or(self.get_class().call_static_void_method(name, sig, args))
+    }
     
 
 }
 impl<'a> From<&JObject<'a>> for JObject<'a> {
     fn from(x: &JObject<'a>) -> Self {
         Self::new(x.ptr, x.env)
+    }
+}
+impl<'a,T> From<JArray<'a,T>> for JObject<'a> {
+    fn from(x: JArray<'a,T>) -> Self {
+        Self::from(&x.ptr)
     }
 }

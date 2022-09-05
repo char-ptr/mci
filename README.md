@@ -43,8 +43,8 @@ i don't recommend using right now.
     - [x] get static fields
     - [x] call methods
     - [x] call static methods
-    - [ ] set fields
-    - [ ] set fields
+    - [x] set fields
+    - [x] set fields
     - [ ] compilable 
     - [ ] auto static detection (i)
  #### information

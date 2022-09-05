@@ -54,4 +54,4 @@ i don't recommend using right now.
 
 
 ## LICENSE
-[this project / library is licensed under **GNU Lesser General Public License v2.1**](https://github.com/pozm/mci/blob/master/LICENSE)
+[this project / library is licensed under **GNU General Public License v2.0**](https://github.com/pozm/mci/blob/master/LICENSE)

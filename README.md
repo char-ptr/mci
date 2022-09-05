@@ -44,7 +44,7 @@ i don't recommend using right now.
     - [x] call methods
     - [x] call static methods
     - [x] set fields
-    - [x] set fields
+    - [x] set static fields
     - [ ] compilable 
     - [ ] auto static detection (i)
  #### information

@@ -5,5 +5,5 @@
 use jni::*;
 use jni::object::JObject;
 
-include!(concat!(env!("OUT_DIR"), "/maps.rs"));
+// include!(concat!(env!("OUT_DIR"), "/maps.rs"));
 

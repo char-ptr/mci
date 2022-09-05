@@ -102,7 +102,7 @@ pub fn generate_rs<W:Write>(yarn_maps : Arc<RwLock<SigMappings>>,tiny_maps : Arc
             let tinm = Arc::clone(&tiny_maps);
             let tinm = tinm.read().unwrap();
             let actual_class = tinm.sig_to_x.get(&c.from).ok_or(())?;
-            println!("{:?}",actual_class);
+            // println!("{:?}",actual_class);
 
             let class_name = if names.contains(&format!("c:{}",c.to)) {
                 sanitize(&format!("{}{}",c.to,rand::thread_rng().gen::<u32>()))

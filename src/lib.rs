@@ -3,11 +3,28 @@ mod mci;
 use std::ffi::CString;
 
 use jni::object::JObject;
-use toy_arms::{VirtualKeyCode};
+
+#[cfg(any(target_os="macos",target_os="linux"))]
+use ctor::*;
+#[cfg(any(target_os="macos",target_os="linux"))]
+#[ctor]
+fn entry() {
+    use std::time::Duration;
+    let mut args = std::env::args();
+
+    if args.next().unwrap().contains("java") && args.filter_map(|a| if a.contains("minecraft") && a.ends_with(".jar") {Some(a)} else {None}).count() > 0  {
+        println!("pogging");
+        std::thread::spawn(|| {
+            std::thread::sleep(Duration::from_secs(2));
+
+            main_thread_wrap();
+        });
+    }
+}
 
 
+#[cfg(windows)]
 toy_arms::create_entrypoint!(main_thread_wrap);
-
 
 fn main_thread() -> Result<(), String> {
 
@@ -40,11 +57,6 @@ fn main_thread() -> Result<(), String> {
 
     }
 
-    loop {
-        if toy_arms::detect_keydown!(VirtualKeyCode::VK_INSERT) {
-            break;
-        }
-    }
 
     Ok(())
 }

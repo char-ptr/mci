@@ -1,7 +1,7 @@
 use std::{mem, sync::{Arc, RwLock}, ptr};
 
 use jdk_sys::{JNIEnv, JavaVM};
-use toy_arms::internal::get_module_function_address;
+// use toy_arms::internal::get_module_function_address;
 
 use jni::env::Jenv;
 
@@ -28,11 +28,12 @@ impl<'a> MCI<'a> {
     }
 
     pub fn load_jvm(&mut self) -> Result<(), String> {
-        let get_jvms : GetJvms = unsafe {
-            mem::transmute(
-                get_module_function_address("jvm.dll", "JNI_GetCreatedJavaVMs").ok_or("JNI_GetCreatedJavaVMs not found".to_string())?
-            )
-        };
+        // let get_jvms : GetJvms = unsafe {
+        //     mem::transmute(
+        //         get_module_function_address("jvm.dll", "JNI_GetCreatedJavaVMs").ok_or("JNI_GetCreatedJavaVMs not found".to_string())?
+        //     )
+        // };
+        let get_jvms = jdk_sys::JNI_GetCreatedJavaVMs;
         let i32_null_ptr : *mut i32 = std::ptr::null_mut();
         let mut jvm_ptr: *mut *mut JavaVM = &mut *self.jvm.write().unwrap();
         

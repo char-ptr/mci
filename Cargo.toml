@@ -15,5 +15,8 @@ members = ["jdk-sys","mc-mappings","mc-mappings/map-utils","jni"]
 jdk-sys = {path = "./jdk-sys"}
 mc-mappings = {path = "./mc-mappings"}
 jni = {path = "./jni"}
+[target.'cfg(any(target_os="macos",target_os="linux"))'.dependencies]
+ctor = "*"
+[target.'cfg(windows)'.dependencies]
 toy-arms = "0.9.4"
 windows = "0.39.0"

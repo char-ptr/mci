@@ -1,5 +1,3 @@
-#![feature(fs_try_exists)]
-
 use std::{path::PathBuf, process, str::FromStr, sync::{Arc, RwLock}};
 
 use map_utils::{maps::{SigMappings, yarn::run_dir}, gen::generate_rs};
@@ -10,7 +8,7 @@ fn main() {
 
     let outdir = PathBuf::from_str(".").unwrap();
     
-    if std::fs::try_exists(outdir.join("mappings")).is_err() {
+    if !outdir.join("mappings").exists() {
         process::Command::new("git").args(vec!["clone","--depth","1","--filter=blob:none","--sparse", "https://github.com/FabricMC/yarn.git", &outdir.join("mappings").display().to_string()]).spawn().unwrap().wait().unwrap();
         process::Command::new("git").args(vec!["-C",&outdir.join("mappings").display().to_string(),"sparse-checkout", "set","mappings"]).spawn().unwrap().wait().unwrap();
     }

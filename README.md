@@ -9,6 +9,12 @@ so with this project i decided to just have it automatically generate all the re
 ## how to use
 i don't recommend using right now.
 
+### macos
+before running poly mc or what ever launcher, make sure to set the `DYLD_INSERT_LIBRARIES` env, example below:
+```
+DYLD_INSERT_LIBRARIES=/Users/****/dev/mci/target/debug/libmci.dylib ./polymc
+```
+
 ## progress 
 ### jni wrapper
 - [x] jclass / jobject

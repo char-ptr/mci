@@ -6,7 +6,7 @@ use jni::object::JObject;
 
 #[cfg(any(target_os="macos",target_os="linux"))]
 use ctor::*;
-#[cfg(any(target_os="macos",target_os="linux"))]
+#[cfg(target_os="macos")]
 #[ctor]
 fn entry() {
     use std::time::Duration;
@@ -21,7 +21,12 @@ fn entry() {
         });
     }
 }
-
+#[cfg(target_os="linux")]
+#[ctor]
+fn entry() {
+    println!("pogging");
+    std::thread::spawn(main_thread_wrap);
+}
 
 #[cfg(windows)]
 toy_arms::create_entrypoint!(main_thread_wrap);

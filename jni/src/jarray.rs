@@ -2,14 +2,14 @@ use std::{ops::{Index, Deref, DerefMut}, default};
 
 use crate::{unchecked_jnic, object::JObject, jvalue::JValue};
 use super::env::Jenv;
-pub struct JArray<'a> {
+pub struct JArray<'a,T> {
     pub ptr : JObject<'a>,
     pub length : usize,
-    pub inner:  Vec<JValue<'a>>,
+    pub inner:  Vec<T>,
 }
 
-impl<'a> From<JObject<'a>> for JArray<'a> {
-    fn from(obj : JObject<'a>) -> Self {
+impl<'a,T> JArray<'a,T> {
+    pub fn new(obj:JObject<'a>) -> JArray<'a,T> {
         let length = unchecked_jnic!(obj.env.ptr,GetArrayLength, obj.ptr) as usize;
 
         JArray {
@@ -18,24 +18,33 @@ impl<'a> From<JObject<'a>> for JArray<'a> {
             inner : Vec::with_capacity(length),
         }
     }
+    pub fn len(&self) -> usize {
+        self.length
+    }
+}
+
+impl<'a,T> From<JObject<'a>> for JArray<'a,T> {
+    fn from(obj : JObject<'a>) -> Self {
+        Self::new(obj)
+    }
 
 }
-impl<'a> Deref for JArray<'a> {
-    type Target = Vec<JValue<'a>>;
+impl<'a> JArray<'a,i32> {
+    pub fn get_all(&self) -> Vec<i32> {
+        unsafe {
+            Vec::from_raw_parts(unchecked_jnic!(self.ptr.env.ptr,GetIntArrayElements, self.ptr.ptr, std::ptr::null_mut()), self.length, self.length)
+        }
+    }
+}
+
+impl<'a,T> Deref for JArray<'a,T> {
+    type Target = Vec<T>;
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
-impl<'a> DerefMut for JArray<'a> {
+impl<'a,T> DerefMut for JArray<'a,T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
-}
-
-
-impl<'a> JArray<'a> {
-    fn len(&self) -> usize {
-        self.length
-    }
-
 }

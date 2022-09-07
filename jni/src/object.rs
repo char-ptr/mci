@@ -284,8 +284,8 @@ impl<'a> From<&JObject<'a>> for JObject<'a> {
         Self::new(x.ptr, x.env)
     }
 }
-impl<'a> From<JArray<'a>> for JObject<'a> {
-    fn from(x: JArray<'a>) -> Self {
+impl<'a,T> From<JArray<'a,T>> for JObject<'a> {
+    fn from(x: JArray<'a,T>) -> Self {
         Self::from(&x.ptr)
     }
 }

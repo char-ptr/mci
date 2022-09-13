@@ -10,11 +10,11 @@ crate-type = ["cdylib"]
 
 
 [workspace]
-members = ["jdk-sys","mc-mappings","mc-mappings/map-utils","jni"]
+members = ["./crates/*"]
 [dependencies]
-jdk-sys = {path = "./jdk-sys"}
-mc-mappings = {path = "./mc-mappings"}
-jni = {path = "./jni"}
+jdk-sys = {path = "./crates/jdk-sys"}
+mc-mappings = {path = "./crates/mc-mappings"}
+jni = {path = "./crates/jni"}
 [target.'cfg(any(target_os="macos",target_os="linux"))'.dependencies]
 ctor = "*"
 [target.'cfg(windows)'.dependencies]

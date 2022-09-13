@@ -5,26 +5,26 @@ use parking_lot::RwLock;
 
 #[derive(Debug)]
 pub struct Module{
-    name: String,
-    scope: Vec<ModuleOrClass>
+    pub(crate) name: String,
+    pub(crate) scope: Vec<ModuleOrClass>
 } 
 #[derive(Debug)]
 pub struct Method {
-    map_data : Mapping,
-    arguments: Vec<Mapping>,
-    type_signature: String
+    pub(crate) map_data : Mapping,
+    pub(crate) arguments: Vec<Mapping>,
+    pub(crate) type_signature: String
 }
 #[derive(Debug)]
 pub struct Field {
-    map_data : Mapping,
-    type_signature: String
+    pub(crate) map_data : Mapping,
+    pub(crate) type_signature: String
 }
 #[derive(Debug)]
 pub struct Class {
-    map_data : Mapping,
-    methods: Vec<Method>,
-    fields: Vec<Field>,
-    inner_classes: Vec<Arc<RwLock<Class>>>,
+    pub(crate)map_data : Mapping,
+    pub(crate)methods: Vec<Method>,
+    pub(crate)fields: Vec<Field>,
+    pub(crate)inner_classes: Vec<Arc<RwLock<Class>>>,
 }
 #[derive(Debug)]
 
@@ -32,8 +32,8 @@ pub struct Mapping{pub from: String, pub to: String}
 #[derive(Debug)]
 
 pub enum ModuleOrClass {
-    Module(Module),
-    Class(Class)
+    Module(Arc<RwLock<Module>>),
+    Class(Arc<RwLock<Class>>)
 }
 #[derive(Debug)]
 
@@ -43,14 +43,28 @@ pub struct Signature {
 #[derive(Debug)]
 
 pub struct Yarn<'a> {
-    modules: Vec<Module>,
-    lookup: HashMap<String, &'a ModuleOrClass>
+    pub(crate) modules: Vec<Arc<RwLock<Module>>>,
+    pub(crate) lookup: HashMap<String, &'a ModuleOrClass>
+}
+
+impl Module {
+    pub fn new(name:String) -> Self {
+        Self {
+            name,
+            scope: Vec::new()
+        }
+    }
 }
 
 
-// const GENERAL_TYPE_MATCHER : &'static str = r#"(\[*)([ZBCSIJFD]|L[A-Za-z0-9/_$]+)"#;
-// const RETURN_TYPE_MATCHER : &'static str = r#"\(((\[*)([ZBCSIJFD]|L[A-Za-z0-9/_$]+);)+\)(\[*)([ZBCSIJFDV]|L[A-Za-z0-9/_$]+)"#;
-
+impl Mapping {
+    pub fn get_safe_name(&self) -> String {
+        let mut name = self.to.clone();
+        let mut name = name.split('/').last().unwrap().to_string();
+        name.retain(|c| c.is_alphanumeric() || c == '_');
+        name
+    }
+}
 
 impl Class {
     pub fn from_token(token : &ClassIdToken) -> Self {
@@ -173,7 +187,8 @@ pub enum YarnTokens {
 #[derive(Debug)]
 pub enum YarnParseError {
     RootClassNotFound,
-    LexingError
+    LexingError,
+    ImpossibleArgument
 }
 
 impl<'a> Yarn<'a> {
@@ -185,7 +200,7 @@ impl<'a> Yarn<'a> {
         }
     }
 
-    pub fn run_str(&mut self,s :&str) -> Result<(),YarnParseError> {
+    pub fn run_str(&mut self,s :&str) -> Result<Arc<RwLock<Class>>,YarnParseError> {
         let tokens = YarnTokens::lexer(&s);
 
         let mut tokens = tokens.peekable();
@@ -220,7 +235,7 @@ impl<'a> Yarn<'a> {
                     stack.last_mut().unwrap().write().methods.push(Method::from_token(&m));
                 },
                 YarnTokens::Arg(a) => {
-                    stack.last_mut().unwrap().write().methods.last_mut().unwrap().arguments.push(Mapping { from: a.0.to_string(), to: a.1 });
+                    stack.last_mut().unwrap().write().methods.last_mut().ok_or(YarnParseError::ImpossibleArgument)?.arguments.push(Mapping { from: a.0.to_string(), to: a.1 });
                 },
                 YarnTokens::Field(f) => {
                     stack.last_mut().unwrap().write().fields.push(Field::from_token(&f));
@@ -252,27 +267,70 @@ impl<'a> Yarn<'a> {
             }
         }
 
-        println!("{:#?}",root_class);
+        // println!("{:#?}",root_class);
 
-        Ok(())
+        Ok(root_class)
     }
 
-    pub fn run_file(&mut self,path:PathBuf) {
+    pub fn run_file(&mut self,path:&PathBuf) -> Result<Arc<RwLock<Class>>,YarnParseError> {
         let mut file = File::open(path).unwrap();
         let mut fstr = String::new();
         file.read_to_string(&mut fstr);
         
-        self.run_str(&fstr);
+        self.run_str(&fstr)
+    }
+    pub fn run_directory(&mut self,path:PathBuf, module:Option<Arc<RwLock<Module>>>) -> Result<Arc<RwLock<Module>>,YarnParseError> {
+        let mut module = match module {
+            Some(x) => x,
+            None => {
+                let modul = Arc::new(RwLock::new(Module::new(path.file_name().unwrap().to_str().unwrap().to_string())));
+
+                self.modules.push(modul.clone());
+                modul
+            }
+        };
+        for entry in std::fs::read_dir(path).unwrap() {
+            let entry = entry.unwrap();
+            let path = entry.path();
+            if path.is_dir() {
+                let new_mod = Arc::new(RwLock::new(Module::new(path.file_name().unwrap().to_str().unwrap().to_string())));
+                self.run_directory(path,Some(new_mod.clone()));
+                module.write().scope.push(ModuleOrClass::Module(new_mod.clone()));
+            } else {
+                match self.run_file(&path) {
+                    Ok(x) => {
+                        module.write().scope.push(ModuleOrClass::Class(x.clone()));
+                    },
+                    Err(r) => {
+                        println!("{} failed = {:?}",&path.display(),r);
+                    }
+                };
+            }
+        }
+        Ok(module)
     }
 
 }
 
+mod tests {
+    use std::path::PathBuf;
 
-#[test]
-fn test_lexer() {
-    let mut yarn_instance = Yarn::new();
+    use super::Yarn;
+    #[test]
+    fn test_lexer() {
+        let mut yarn_instance = Yarn::new();
+    
+        yarn_instance.run_str(include_str!("../../../mc-mappings/mappings/mappings/net/minecraft/advancement/Advancement.mapping")).expect("bruh");
+    }
 
-    yarn_instance.run_str(include_str!("../../mc-mappings/mappings/mappings/net/minecraft/advancement/Advancement.mapping")).expect("bruh");
+    #[test]
+    fn test_dir_run() {
+        let mut yarn_instance = Yarn::new();
 
+        println!("env = {}",std::env::current_dir().unwrap().to_str().unwrap());
 
+        yarn_instance.run_directory(PathBuf::from("../mc-mappings/mappings/mappings/net"), None);
+
+        // println!("{:#?}",yarn_instance.modules);
+    }
 }

@@ -37,6 +37,16 @@ pub struct Field {
     pub(crate) Yarn: String,
 }
 
+impl LookupType {
+    pub fn get_obfuscated(&self) -> String {
+        match self {
+            LookupType::Class(class) => class.from.clone(),
+            LookupType::Method(method) => method.Obfuscated.clone(),
+            LookupType::Field(field) => field.Obfuscated.clone(),
+        }
+    }
+}
+
 
 impl Tiny {
     pub fn new() -> Self {

@@ -58,6 +58,11 @@ DYLD_INSERT_LIBRARIES=/Users/****/dev/mci/target/debug/libmci.dylib ./polymc
  ### MCI (root)
  im not even working on it until mappings work lol
 
+### useful resources
+- [`FabricMC/intermediary`](https://github.com/FabricMC/intermediary): mappings from minecraft obfuscated to yarn
+- [`FabricMC/yarn`](https://github.com/FabricMC/yarn): mappings which include names and descriptions etc.
 
 ## LICENSE
 [this project / library is licensed under **GNU General Public License v2.0**](https://github.com/pozm/mci/blob/master/LICENSE)
+
+

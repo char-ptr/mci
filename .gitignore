@@ -3,3 +3,6 @@
 /mc-mappings/mappings
 mc-mappings/output.txt
 /.idea
+crates/gen_src.rs
+crates/map-gen/test.ron
+crates/mc-mappings/mappings

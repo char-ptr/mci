@@ -58,6 +58,9 @@ DYLD_INSERT_LIBRARIES=/Users/****/dev/mci/target/debug/libmci.dylib ./polymc
  ### MCI (root)
  im not even working on it until mappings work lol
 
+## useful resources / used resources
+- [tiny mappings](https://github.com/FabricMC/intermediary/tree/master/mappings)
+- [yarn mappings](https://github.com/FabricMC/yarn/tree/1.19.3/mappings)
 
 ## LICENSE
 [this project / library is licensed under **GNU General Public License v2.0**](https://github.com/pozm/mci/blob/master/LICENSE)

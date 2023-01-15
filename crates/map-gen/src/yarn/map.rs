@@ -6,6 +6,7 @@ use parking_lot::RwLock;
 #[derive(Debug)]
 pub struct Module{
     pub(crate) name: String,
+    pub(crate) ancestors: Vec<String>,
     pub(crate) scope: Vec<ModuleOrClass>
 } 
 #[derive(Debug)]
@@ -51,7 +52,15 @@ impl Module {
     pub fn new(name:String) -> Self {
         Self {
             name,
-            scope: Vec::new()
+            scope: Vec::new(),
+            ancestors: Vec::new()
+        }
+    }
+    pub fn new_with_ancestors(name:String, ancestors: Vec<String>) -> Self {
+        Self {
+            name,
+            scope: Vec::new(),
+            ancestors
         }
     }
 }
@@ -81,13 +90,26 @@ impl Class {
 }
 impl Method {
     pub fn from_token(token : &MethodToken) -> Self {
-        Self{
-            arguments: Vec::new(),
-            map_data: Mapping{
-                from: token.0.clone(),
-                to: token.1.clone()
-            },
-            type_signature: token.2.clone()
+        if token.2.is_empty() {
+            Self{
+                arguments: Vec::new(),
+                map_data: Mapping{
+                    from: token.0.clone(),
+                    to: "".to_string()
+                },
+                type_signature: token.1.clone()
+            }
+        }
+        else{
+            Self{
+                arguments: Vec::new(),
+                map_data: Mapping{
+                    from: token.0.clone(),
+                    to: token.1.clone()
+                },
+                type_signature: token.2.clone()
+            }
+
         }
     }
 }
@@ -232,6 +254,7 @@ impl<'a> Yarn<'a> {
 
                 },
                 YarnTokens::Method(m) => {
+                    // add to lookup
                     stack.last_mut().unwrap().write().methods.push(Method::from_token(&m));
                 },
                 YarnTokens::Arg(a) => {
@@ -293,7 +316,14 @@ impl<'a> Yarn<'a> {
             let entry = entry.unwrap();
             let path = entry.path();
             if path.is_dir() {
-                let new_mod = Arc::new(RwLock::new(Module::new(path.file_name().unwrap().to_str().unwrap().to_string())));
+                let ancestors = {
+                    let rmod = module.read();
+                    let mut an = rmod.ancestors.clone();
+                    an.push(rmod.name.clone());
+                    an
+
+                };
+                let new_mod = Arc::new(RwLock::new(Module::new_with_ancestors(path.file_name().unwrap().to_str().unwrap().to_string(),ancestors)));
                 self.run_directory(path,Some(new_mod.clone()));
                 module.write().scope.push(ModuleOrClass::Module(new_mod.clone()));
             } else {
@@ -313,7 +343,7 @@ impl<'a> Yarn<'a> {
 }
 
 mod tests {
-    use std::path::PathBuf;
+    use std::{path::PathBuf, fs::File, io::Write};
 
     use super::Yarn;
     #[test]
@@ -329,8 +359,9 @@ mod tests {
 
         println!("env = {}",std::env::current_dir().unwrap().to_str().unwrap());
 
-        yarn_instance.run_directory(PathBuf::from("../mc-mappings/mappings/mappings/net"), None);
+        yarn_instance.run_directory(PathBuf::from("../mc-mappings/mappings/mappings/net/minecraft"), None);
 
+        File::create("test.ron").unwrap().write_all(format!("{:#?}",yarn_instance.modules).as_bytes()).unwrap();
         // println!("{:#?}",yarn_instance.modules);
     }
 }

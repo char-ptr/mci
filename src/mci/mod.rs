@@ -28,14 +28,9 @@ impl<'a> MCI<'a> {
     }
 
     pub fn load_jvm(&mut self) -> Result<(), String> {
-        // let get_jvms : GetJvms = unsafe {
-        //     mem::transmute(
-        //         get_module_function_address("jvm.dll", "JNI_GetCreatedJavaVMs").ok_or("JNI_GetCreatedJavaVMs not found".to_string())?
-        //     )
-        // };
         let get_jvms = jdk_sys::JNI_GetCreatedJavaVMs;
         let i32_null_ptr : *mut i32 = std::ptr::null_mut();
-        let mut jvm_ptr: *mut *mut JavaVM = &mut *self.jvm.write().unwrap();
+        let mut jvm_ptr: *mut *mut JavaVM = &mut *self.jvm.write().or(Err("unable to write to jvm".to_string()))?;
         
         unsafe {get_jvms(jvm_ptr,1, i32_null_ptr);};
 
@@ -43,8 +38,8 @@ impl<'a> MCI<'a> {
     }
 
     pub fn attach_current_thread(&mut self) -> Result<(),String> {
-        let mut jvm = *self.jvm.write().unwrap();
-        let mut jenv2 :*mut *mut JNIEnv = &mut self.jenv.write().unwrap().ptr;
+        let mut jvm = *self.jvm.write().or(Err("unable to write to jvm".to_string()))?;
+        let mut jenv2 :*mut *mut JNIEnv = &mut self.jenv.write().or(Err("unable to write to jvm".to_string()))?.ptr;
         unsafe {(*(*jvm)).AttachCurrentThread.unwrap()(jvm,std::mem::transmute(jenv2),ptr::null_mut());};
 
         if jenv2.is_null() {

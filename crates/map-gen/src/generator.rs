@@ -85,10 +85,13 @@ impl CodeGenerator for Class {
 }
 impl CodeGenerator for Method {
     fn gen(&self, gen: &Generator) -> TokenStream {
-        let name = &self.map_data.to;
+        let using = if (&self).map_data.to.is_empty() { &self.map_data.from } else { &self.map_data.to};
+        let conv_to : String = using.chars().map(|c| if c.is_alphanumeric() {c} else {'_'}).collect();
+        println!("[fn] {} -> {}",self.map_data.from, conv_to);
+        let name = format_ident!("fn_{}",conv_to);
         let mut code = TokenStream::new();
         quote! {
-            fn #name() {
+            fn #name() -> JObject<'a> {
                 #code
             }
         }
@@ -97,8 +100,8 @@ impl CodeGenerator for Method {
 impl CodeGenerator for Field {
     fn gen(&self, yarn: &Generator) -> TokenStream {
         let name = &self.map_data.to;
-        let ident = format_ident!("{}",name);
-        let static_ident = format_ident!("s{}",name);
+        let ident = format_ident!("m_{}",name);
+        let static_ident = format_ident!("s_{}",name);
         let return_type = quote!{};
         quote! {
             pub fn #ident(&self) -> #return_type {
@@ -112,7 +115,7 @@ impl CodeGenerator for Field {
 }
 
 mod tests {
-    use std::{path::PathBuf, io::BufReader, fs::File};
+    use std::{path::PathBuf, io::BufReader, fs::{File, self}, str::FromStr};
     use super::*;
 
     #[test]
@@ -123,9 +126,13 @@ mod tests {
         let mut tiny = BufReader::new(File::open("../mc-mappings/mappings/tiny/1.19.tiny").expect("fw"));
         gen.Tiny.populate_from_reader(&mut tiny);
 
+        println!("yarn : {:#?}",gen.Yarn);
+
         // println!("{:?}",gen.Tiny);
 
         let code = gen.Yarn.gen(&gen);
+
+        fs::write("../gen_src.rs", code.to_string()).expect("fw");
 
         println!("{}",code);
     }

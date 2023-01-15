@@ -213,6 +213,43 @@ pub enum YarnParseError {
     ImpossibleArgument
 }
 
+
+
+#[derive(Debug)]
+enum YarnSigType<'a> {
+    Class(&'a str),
+    Bool,
+    Byte,
+    Char,
+    Short,
+    Int,
+    Long,
+    Float,
+    Double,
+    Void
+}
+impl ToString for YarnSigType<'_> {
+    fn to_string(&self) -> String {
+        match self {
+            YarnSigType::Class(s) => s.to_string(),
+            YarnSigType::Bool => "bool".to_string(),
+            YarnSigType::Byte => "u8".to_string(),
+            YarnSigType::Char => "char".to_string(),
+            YarnSigType::Short => "i16".to_string(),
+            YarnSigType::Int => "i32".to_string(),
+            YarnSigType::Long => "i64".to_string(),
+            YarnSigType::Float => "f32".to_string(),
+            YarnSigType::Double => "f64".to_string(),
+            YarnSigType::Void => "()".to_string()
+        }
+    }
+}
+#[derive(Debug)]
+enum YarnSigTypes<'a> {
+    Method(Vec<YarnSigType<'a>>,),
+    Field(YarnSigType<'a>)
+}
+
 impl<'a> Yarn<'a> {
 
     pub fn new() -> Self {
@@ -220,6 +257,10 @@ impl<'a> Yarn<'a> {
             modules: Vec::new(),
             lookup: HashMap::new()
         }
+    }
+
+    pub fn resolve_sig(sig: &str) {
+        
     }
 
     pub fn run_str(&mut self,s :&str) -> Result<Arc<RwLock<Class>>,YarnParseError> {

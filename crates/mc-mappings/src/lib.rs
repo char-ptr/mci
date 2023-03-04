@@ -1,9 +1,8 @@
 #![allow(non_camel_case_types)]
-
+#![allow(dead_code)]
+#![allow(non_snake_case)]
+#![allow(non_upper_case)]
 // pub mod m_mc;
 // pub mod maps;
-use jni::*;
-use jni::object::JObject;
 
-// include!(concat!(env!("OUT_DIR"), "/maps.rs"));
-
+include!(concat!(env!("OUT_DIR"),"/gen.rs"));

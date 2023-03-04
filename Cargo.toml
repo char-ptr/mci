@@ -18,5 +18,6 @@ jni = {path = "./crates/jni"}
 [target.'cfg(any(target_os="macos",target_os="linux"))'.dependencies]
 ctor = "*"
 [target.'cfg(windows)'.dependencies]
-toy-arms = "0.9.4"
-windows = "0.39.0"
+poggers = {git = "https://github.com/pozm/poggers"}
+poggers-derive = {git = "https://github.com/pozm/poggers"}
+windows = "0.44.0"

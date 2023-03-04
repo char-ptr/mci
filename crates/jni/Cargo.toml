@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 jdk-sys = {path = "../jdk-sys"}
+jni-proc = {path = "../jni-proc"}

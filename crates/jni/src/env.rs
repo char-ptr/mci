@@ -4,9 +4,6 @@ use jdk_sys::JNIEnv;
 
 use crate::{unchecked_jnic, unchecked_jnice, class::JClass};
 
-use super::object::JObject;
-
-
 #[repr(transparent)]
 #[derive(Copy, Clone,Debug)]
 pub struct Jenv<'a>{
@@ -26,7 +23,6 @@ impl Jenv<'_> {
         unsafe {**self.ptr}
     }
     pub fn get_version(&self) -> String {
-        use jdk_sys;
         unsafe {(*(*self.ptr)).GetVersion.unwrap()(self.ptr);}
 
         match unchecked_jnic!(self.ptr,GetVersion) as u32 {

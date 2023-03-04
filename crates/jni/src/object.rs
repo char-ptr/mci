@@ -11,7 +11,6 @@ pub struct JObject<'a> {
     class : Arc<JClass<'a>>,
 }
 
-
 impl<'a> JObject<'a> {
     pub fn new(ptr : jdk_sys::jobject,env : &'a Jenv) -> Self {
         let class = Arc::new(JClass::new(unchecked_jnic!(env.ptr,GetObjectClass, ptr),env));
@@ -21,6 +20,15 @@ impl<'a> JObject<'a> {
             class
         }
     }
+
+
+    /// hard clone
+    /// https://docs.oracle.com/en/java/javase/14/docs/api/java.base/java/lang/Object.html#clone()
+    pub fn hard_clone(&self) -> Result<JObject<'a>,()> {
+        let obj = self.call_object_method::<JObject>("clone","()Ljava/lang/Object;", &vec![])?;
+        Ok(JObject::new(obj.ptr,self.env))
+    }
+
     pub fn get_class(&self) -> Arc<JClass<'a>> {
         Arc::clone(&self.class)
     }
@@ -186,95 +194,95 @@ impl<'a> JObject<'a> {
     // get fields
 
     pub fn get_field_object<T:From<JObject<'a>>>(&self,name:&str,sig:&str) -> Result<T,()> {
-        self._get_object_field(name, sig).or(self.get_class().get_static_object_field(name, sig))
+        self._get_object_field(name, sig).or_else(|()|self.get_class().get_static_object_field(name, sig))
     }
     pub fn get_field_boolean(&self,name:&str,sig:&str) -> Result<bool,()> {
-        self._get_boolean_field(name, sig).or(self.get_class().get_static_boolean_field(name, sig))
+        self._get_boolean_field(name, sig).or_else(|()|self.get_class().get_static_boolean_field(name, sig))
     }
     pub fn get_field_byte(&self,name:&str,sig:&str) -> Result<i8,()> {
-        self._get_byte_field(name, sig).or(self.get_class().get_static_byte_field(name, sig))
+        self._get_byte_field(name, sig).or_else(|()|self.get_class().get_static_byte_field(name, sig))
     }
     pub fn get_field_char(&self,name:&str,sig:&str) -> Result<char,()> {
-        self._get_char_field(name, sig).or(self.get_class().get_static_char_field(name, sig))
+        self._get_char_field(name, sig).or_else(|()|self.get_class().get_static_char_field(name, sig))
     }
     pub fn get_field_short(&self,name:&str,sig:&str) -> Result<i16,()> {
-        self._get_short_field(name, sig).or(self.get_class().get_static_short_field(name, sig))
+        self._get_short_field(name, sig).or_else(|()|self.get_class().get_static_short_field(name, sig))
     }
     pub fn get_field_int(&self,name:&str,sig:&str) -> Result<i32,()> {
-        self._get_int_field(name, sig).or(self.get_class().get_static_int_field(name, sig))
+        self._get_int_field(name, sig).or_else(|()|self.get_class().get_static_int_field(name, sig))
     }
     pub fn get_field_long(&self,name:&str,sig:&str) -> Result<i64,()> {
-        self._get_long_field(name, sig).or(self.get_class().get_static_long_field(name, sig))
+        self._get_long_field(name, sig).or_else(|()|self.get_class().get_static_long_field(name, sig))
     }
     pub fn get_field_float(&self,name:&str,sig:&str) -> Result<f32,()> {
-        self._get_float_field(name, sig).or(self.get_class().get_static_float_field(name, sig))
+        self._get_float_field(name, sig).or_else(|()|self.get_class().get_static_float_field(name, sig))
     }
     pub fn get_field_double(&self,name:&str,sig:&str) -> Result<f64,()> {
-        self._get_double_field(name, sig).or(self.get_class().get_static_double_field(name, sig))
+        self._get_double_field(name, sig).or_else(|()|self.get_class().get_static_double_field(name, sig))
     }
     
 
         // set fields
 
     pub fn set_field_object(&self,name:&str,sig:&str,new_value:&'a JObject<'a>) -> Result<(),()> {
-        self._set_object_field(name, sig, new_value).or(self.get_class().set_static_object_field(name, sig, new_value))
+        self._set_object_field(name, sig, new_value).or_else(|()|self.get_class().set_static_object_field(name, sig, new_value))
     }
     pub fn set_field_boolean(&self,name:&str,sig:&str,new_value:bool) -> Result<(),()> {
-        self._set_boolean_field(name, sig, new_value).or(self.get_class().set_static_boolean_field(name, sig, new_value))
+        self._set_boolean_field(name, sig, new_value).or_else(|()|self.get_class().set_static_boolean_field(name, sig, new_value))
     }
     pub fn set_field_byte(&self,name:&str,sig:&str,new_value:i8) -> Result<(),()> {
-        self._set_byte_field(name, sig, new_value).or(self.get_class().set_static_byte_field(name, sig, new_value))
+        self._set_byte_field(name, sig, new_value).or_else(|()|self.get_class().set_static_byte_field(name, sig, new_value))
     }
     pub fn set_field_char(&self,name:&str,sig:&str,new_value:char) -> Result<(),()> {
-        self._set_char_field(name, sig, new_value).or(self.get_class().set_static_char_field(name, sig, new_value))
+        self._set_char_field(name, sig, new_value).or_else(|()|self.get_class().set_static_char_field(name, sig, new_value))
     }
     pub fn set_field_short(&self,name:&str,sig:&str,new_value:i16) -> Result<(),()> {
-        self._set_short_field(name, sig, new_value).or(self.get_class().set_static_short_field(name, sig, new_value))
+        self._set_short_field(name, sig, new_value).or_else(|()|self.get_class().set_static_short_field(name, sig, new_value))
     }
     pub fn set_field_int(&self,name:&str,sig:&str,new_value:i32) -> Result<(),()> {
-        self._set_int_field(name, sig, new_value).or(self.get_class().set_static_int_field(name, sig, new_value))
+        self._set_int_field(name, sig, new_value).or_else(|()|self.get_class().set_static_int_field(name, sig, new_value))
     }
     pub fn set_field_long(&self,name:&str,sig:&str,new_value:i64) -> Result<(),()> {
-        self._set_long_field(name, sig, new_value).or(self.get_class().set_static_long_field(name, sig, new_value))
+        self._set_long_field(name, sig, new_value).or_else(|()|self.get_class().set_static_long_field(name, sig, new_value))
     }
     pub fn set_field_float(&self,name:&str,sig:&str,new_value:f32) -> Result<(),()> {
-        self._set_float_field(name, sig, new_value).or(self.get_class().set_static_float_field(name, sig, new_value))
+        self._set_float_field(name, sig, new_value).or_else(|()|self.get_class().set_static_float_field(name, sig, new_value))
     }
     pub fn set_field_double(&self,name:&str,sig:&str,new_value:f64) -> Result<(),()> {
-        self._set_double_field(name, sig, new_value).or(self.get_class().set_static_double_field(name, sig, new_value))
+        self._set_double_field(name, sig, new_value).or_else(|()|self.get_class().set_static_double_field(name, sig, new_value))
     }
 
     // methods
 
     pub fn call_object_method<T:From<JObject<'a>>>(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<T,()> {
-        self._call_object_method(name, sig, args).or(self.get_class().call_static_object_method(name, sig, args))
+        self._call_object_method(name, sig, args).or_else(|()|self.get_class().call_static_object_method(name, sig, args))
     }
     pub fn call_boolean_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<bool,()> {
-        self._call_boolean_method(name, sig, args).or(self.get_class().call_static_boolean_method(name, sig, args))
+        self._call_boolean_method(name, sig, args).or_else(|()|self.get_class().call_static_boolean_method(name, sig, args))
     }
     pub fn call_char_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<char,()> {
-        self._call_char_method(name, sig, args).or(self.get_class().call_static_char_method(name, sig, args))
+        self._call_char_method(name, sig, args).or_else(|()|self.get_class().call_static_char_method(name, sig, args))
     }
     pub fn call_byte_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i8,()> {
-        self._call_byte_method(name, sig, args).or(self.get_class().call_static_byte_method(name, sig, args))
+        self._call_byte_method(name, sig, args).or_else(|()|self.get_class().call_static_byte_method(name, sig, args))
     }
     pub fn call_short_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i16,()> {
-        self._call_short_method(name, sig, args).or(self.get_class().call_static_short_method(name, sig, args))
+        self._call_short_method(name, sig, args).or_else(|()|self.get_class().call_static_short_method(name, sig, args))
     }
     pub fn call_int_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i32,()> {
-        self._call_int_method(name, sig, args).or(self.get_class().call_static_int_method(name, sig, args))
+        self._call_int_method(name, sig, args).or_else(|()|self.get_class().call_static_int_method(name, sig, args))
     }
     pub fn call_long_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<i64,()> {
-        self._call_long_method(name, sig, args).or(self.get_class().call_static_long_method(name, sig, args))
+        self._call_long_method(name, sig, args).or_else(|()|self.get_class().call_static_long_method(name, sig, args))
     }
     pub fn call_float_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<f32,()> {
-        self._call_float_method(name, sig, args).or(self.get_class().call_static_float_method(name, sig, args))
+        self._call_float_method(name, sig, args).or_else(|()|self.get_class().call_static_float_method(name, sig, args))
     }
     pub fn call_double_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<f64,()> {
-        self._call_double_method(name, sig, args).or(self.get_class().call_static_double_method(name, sig, args))
+        self._call_double_method(name, sig, args).or_else(|()|self.get_class().call_static_double_method(name, sig, args))
     }
     pub fn call_void_method(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<(),()> {
-        self._call_void_method(name, sig, args).or(self.get_class().call_static_void_method(name, sig, args))
+        self._call_void_method(name, sig, args).or_else(|()|self.get_class().call_static_void_method(name, sig, args))
     }
     
 

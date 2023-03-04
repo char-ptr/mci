@@ -49,7 +49,6 @@ impl<'a> JClass<'a> {
 
         let mid=  self.get_static_method_id(name,sig)?;
         obj = unchecked_jnice!(self.env.ptr,CallStaticObjectMethodA, self.ptr, mid,args.as_ptr())?;
-        
         if obj.is_null() {
             return Err(());
         }
@@ -206,6 +205,26 @@ impl<'a> JClass<'a> {
     pub fn get_name() {}
 
 }
+
+pub trait JClassExt<T> {
+    fn set_static_field(cls:&JClass, name: &str, sig: &str, new_value: T) -> Result<(), ()>;
+    fn get_static_field(cls:&JClass, name: &str, sig: &str) -> Result<T, ()>;
+    fn call_static_method(cls:&JClass, name: &str, sig: &str, args:&Vec<JValue>) -> Result<T, ()>;
+}
+
+jni_proc::generate_jclass_impls!(bool,boolean);
+jni_proc::generate_jclass_impls!(i8,byte);
+jni_proc::generate_jclass_impls!(char,char);
+jni_proc::generate_jclass_impls!(i16,short);
+jni_proc::generate_jclass_impls!(i32,int);
+jni_proc::generate_jclass_impls!(i64,long);
+jni_proc::generate_jclass_impls!(f32,float);
+jni_proc::generate_jclass_impls!(f64,double);
+
+
+
+
+
 
 impl<'a> From<JObject<'a>> for JClass<'a> {
     fn from(x: JObject<'a>) -> Self {

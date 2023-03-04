@@ -1,4 +1,4 @@
-use std::{collections::HashMap, path::PathBuf, fs::File, io::Read, rc::Rc, cell::RefCell, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, fs::File, io::Read, rc::Rc, cell::RefCell, sync::Arc, fmt::Debug, iter::Peekable, str::Chars};
 
 use logos::{Logos, Lexer};
 use parking_lot::RwLock;
@@ -13,20 +13,28 @@ pub struct Module{
 pub struct Method {
     pub(crate) map_data : Mapping,
     pub(crate) arguments: Vec<Mapping>,
-    pub(crate) type_signature: String
+    pub(crate) type_signature: Signatures
 }
 #[derive(Debug)]
 pub struct Field {
     pub(crate) map_data : Mapping,
-    pub(crate) type_signature: String
+    pub(crate) type_signature: Signatures
 }
-#[derive(Debug)]
 pub struct Class {
     pub(crate)map_data : Mapping,
     pub(crate)methods: Vec<Method>,
     pub(crate)fields: Vec<Field>,
     pub(crate)inner_classes: Vec<Arc<RwLock<Class>>>,
+    pub(crate)owning_module: Arc<RwLock<ModuleOrClass>>,
 }
+
+impl Debug for Class {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let ancestory = self.owning_module.read().get_ancestors().join("/");
+        f.write_fmt(format_args!("{} {{\n\tfields : {:#?}\n\tmethods : {:#?}\n\tinner_classes : {:#?}}}", self.get_namespaced(), self.fields, self.methods, self.inner_classes))
+    }
+}
+
 #[derive(Debug)]
 
 pub struct Mapping{pub from: String, pub to: String}
@@ -36,16 +44,218 @@ pub enum ModuleOrClass {
     Module(Arc<RwLock<Module>>),
     Class(Arc<RwLock<Class>>)
 }
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 
-pub struct Signature {
-
+pub enum Signatures {
+    MethodSig {
+        arguments: Vec<SigPart>,
+        ret: SigPart
+    },
+    FieldSig(SigPart)
 }
+#[derive(Debug,Clone)]
+pub enum SigPart {
+    WithArray {
+        depth: usize,
+        content : SigContentTypes
+    },
+    Normal(SigContentTypes)
+}
+
+impl SigPart {
+    pub fn new_with_depth(depth: usize, content: SigContentTypes) -> Self {
+        if depth == 0 {
+            Self::Normal(content)
+        } else {
+            Self::WithArray {depth, content}
+        }
+    }
+    pub fn get_content(&self) -> &SigContentTypes {
+        match self {
+            SigPart::Normal(c) => c,
+            SigPart::WithArray {content, ..} => content
+        }
+    }
+    pub fn is_class(&self) -> bool {
+        match self {
+            SigPart::Normal(SigContentTypes::Class(_)) => true,
+            SigPart::WithArray {content, ..} => match content {
+                SigContentTypes::Class(_) => true,
+                _ => false
+            },
+            _ => false
+        }
+    }
+    pub fn is_array(&self) -> bool {
+        match self {
+            SigPart::Normal(_) => false,
+            SigPart::WithArray {..} => true
+        }
+    }
+}
+impl Signatures {
+    pub fn unwrap_field(self) -> SigPart {
+        match self {
+            Signatures::FieldSig(s) => s,
+            _ => panic!("Tried to unwrap a method signature as a field signature")
+        }
+    }
+    pub fn unwrap_method(self) -> (Vec<SigPart>, SigPart) {
+        match self {
+            Signatures::MethodSig {arguments, ret} => (arguments, ret),
+            _ => panic!("Tried to unwrap a field signature as a method signature")
+        }
+    }
+    pub fn to_java(&self) -> String {
+        match self {
+            Signatures::MethodSig {arguments, ret} => {
+                let mut args = String::new();
+                for arg in arguments {
+                    args.push_str(&arg.to_java());
+                }
+                format!("({}){}", args, ret.to_java())
+            },
+            Signatures::FieldSig(s) => s.to_java()
+        }
+    }
+}
+
+
+#[derive(Debug,Clone)]
+pub enum SigContentTypes {
+    Class(String),
+    Bool,
+    Byte,
+    Char,
+    Short,
+    Int,
+    Long,
+    Float,
+    Double,
+    Void
+}
+impl SigContentTypes {
+    pub fn to_rust(&self) -> String {
+        match self {
+            SigContentTypes::Class(s) => s.to_string(),
+            SigContentTypes::Bool => "bool".to_string(),
+            SigContentTypes::Byte => "i8".to_string(),
+            SigContentTypes::Char => "char".to_string(),
+            SigContentTypes::Short => "i16".to_string(),
+            SigContentTypes::Int => "i32".to_string(),
+            SigContentTypes::Long => "i64".to_string(),
+            SigContentTypes::Float => "f32".to_string(),
+            SigContentTypes::Double => "f64".to_string(),
+            SigContentTypes::Void => "()".to_string()
+        }
+    }
+    pub fn to_java(&self) -> String {
+        match self {
+            SigContentTypes::Class(s) => format!("L{};", s),
+            SigContentTypes::Bool => "Z".to_string(),
+            SigContentTypes::Byte => "B".to_string(),
+            SigContentTypes::Char => "C".to_string(),
+            SigContentTypes::Short => "S".to_string(),
+            SigContentTypes::Int => "I".to_string(),
+            SigContentTypes::Long => "J".to_string(),
+            SigContentTypes::Float => "F".to_string(),
+            SigContentTypes::Double => "D".to_string(),
+            SigContentTypes::Void => "V".to_string()
+        }
+    }
+    pub fn to_java_name(&self) -> String {
+        match self {
+            SigContentTypes::Class(s) => s.to_string(),
+            SigContentTypes::Bool => "boolean".to_string(),
+            SigContentTypes::Byte => "byte".to_string(),
+            SigContentTypes::Char => "char".to_string(),
+            SigContentTypes::Short => "short".to_string(),
+            SigContentTypes::Int => "int".to_string(),
+            SigContentTypes::Long => "long".to_string(),
+            SigContentTypes::Float => "float".to_string(),
+            SigContentTypes::Double => "double".to_string(),
+            SigContentTypes::Void => "void".to_string()
+        }
+    }
+}
+impl SigPart {
+    pub fn to_rust(&self) -> String {
+        match self {
+            SigPart::Normal(s) => s.to_rust(),
+            SigPart::WithArray {depth, content} => {
+                let s = content.to_rust();
+                format!("{}{s}{}","JArray<".repeat(*depth), ">".repeat(*depth))
+            }
+        }
+    }
+    pub fn to_java(&self) -> String {
+        match self {
+            SigPart::Normal(s) => s.to_java(),
+            SigPart::WithArray {depth, content} => {
+                let s = content.to_java();
+                format!("{}{s}","[".repeat(*depth))
+            }
+        }
+    }
+}
+
+impl Signatures {
+    pub fn parse_from_str(sig:&str) -> Self {
+        let mut itr = sig.chars().peekable();
+        if itr.peek().and_then(|x| if *x == '(' {Some(x)} else {None} ).is_some() {
+            itr.next();
+            let a = Self::parse_method(&mut itr);
+            a
+        } else {
+            Signatures::FieldSig(Self::parse_content(&mut itr))
+        }
+    }
+    fn parse_method<'a>(itr : &mut Peekable<Chars<'a>>) -> Self  {
+        let mut parts = Vec::new();
+        while itr.peek() != Some(&')') {
+            let content = Self::parse_content(itr);
+            parts.push(content);
+        }
+        itr.next();
+        let ret = Self::parse_content(itr);
+
+        Signatures::MethodSig {arguments: parts, ret: ret}
+    }
+    fn parse_content<'a>(itr : &mut Peekable<Chars<'a>>) -> SigPart {
+        let mut depth = 0;
+        // let mut depth = if itr.peek().and_then(|x| if *x == '[' {Some(x)} else {None}).is_some() {itr.take_while(|x| *x == '[').count()} else {0};
+        while itr.peek().is_some_and(|x| *x == '[') {
+            itr.next();
+            depth += 1;
+        }
+        if itr.peek().and_then(|x| if x.to_ascii_uppercase() == 'L' {Some(x)} else {None} ).is_some() {
+            itr.next();
+            let clz= itr.take_while(|x| *x != ';').collect::<String>();
+            return SigPart::new_with_depth(depth, SigContentTypes::Class(clz));
+        }
+        else {
+            let nc = itr.next().and_then(|x| Some(x.to_ascii_uppercase()));
+            match nc {
+                Some('B') => return SigPart::new_with_depth(depth,SigContentTypes::Byte),
+                Some('C') => return SigPart::new_with_depth(depth,SigContentTypes::Char),
+                Some('D') => return SigPart::new_with_depth(depth,SigContentTypes::Double),
+                Some('F') => return SigPart::new_with_depth(depth,SigContentTypes::Float),
+                Some('I') => return SigPart::new_with_depth(depth,SigContentTypes::Int),
+                Some('J') => return SigPart::new_with_depth(depth,SigContentTypes::Long),
+                Some('S') => return SigPart::new_with_depth(depth,SigContentTypes::Short),
+                Some('Z') => return SigPart::new_with_depth(depth,SigContentTypes::Bool),
+                Some('V') => return SigPart::new_with_depth(depth,SigContentTypes::Void),
+                _ => panic!("Unknown content type: {:?}", nc)
+            }
+        }
+    }
+}
+
 #[derive(Debug)]
 
-pub struct Yarn<'a> {
+pub struct Yarn{
     pub(crate) modules: Vec<Arc<RwLock<Module>>>,
-    pub(crate) lookup: HashMap<String, &'a ModuleOrClass>
+    pub(crate) lookup: HashMap<String, String>
 }
 
 impl Module {
@@ -68,15 +278,66 @@ impl Module {
 
 impl Mapping {
     pub fn get_safe_name(&self) -> String {
-        let mut name = self.to.clone();
+        let mut name = self.to.trim().to_string();
+        if name.is_empty() {
+            name = {
+                let mut name = self.from.clone();
+                let mut name = name.split('/').last().unwrap().to_string();
+                name.retain(|c| c.is_alphanumeric() || c == '_');
+                name
+            };
+            println!("Warning: {} has no name, using {} instead", self.from, name);
+            
+
+        }
         let mut name = name.split('/').last().unwrap().to_string();
         name.retain(|c| c.is_alphanumeric() || c == '_');
         name
     }
 }
+impl ModuleOrClass {
+    pub fn get_ancestors(&self) -> Vec<String> {
+        match self {
+            ModuleOrClass::Module(m) => {
+                let m = m.read();
+                m.ancestors.clone()
+            },
+            ModuleOrClass::Class(c) => {
+                let c = c.read();
+                let mut an = c.owning_module.read().get_ancestors().clone();
+                an.push(c.owning_module.read().get_name().clone());
+                an
+            }
+        }
+    }
+    pub fn get_name(&self) -> String {
+        match self {
+            ModuleOrClass::Module(m) => {
+                let m = m.read();
+                m.name.clone()
+            },
+            ModuleOrClass::Class(c) => {
+                let c = c.read();
+                c.map_data.to.clone()
+            }
+        }
+    }
+
+}
+
+impl From<Module> for ModuleOrClass {
+    fn from(m: Module) -> Self {
+        ModuleOrClass::Module(Arc::new(RwLock::new(m)))
+    }
+}
+impl From<Class> for ModuleOrClass {
+    fn from(m: Class) -> Self {
+        ModuleOrClass::Class(Arc::new(RwLock::new(m)))
+    }
+}
 
 impl Class {
-    pub fn from_token(token : &ClassIdToken) -> Self {
+    pub fn from_token(token : &ClassIdToken, modu : Arc<RwLock<ModuleOrClass>>) -> Self {
         Self{
             fields: Vec::new(),
             methods: Vec::new(),
@@ -84,8 +345,19 @@ impl Class {
                 from: token.0.clone(),
                 to: token.1.clone()
             },
-            inner_classes: Vec::new()
+            inner_classes: Vec::new(),
+            owning_module: modu
         }
+    }
+    pub fn get_namespaced(&self) -> String {
+        let ancestory = {
+            let modu = self.owning_module.read();
+            let mut an = modu.get_ancestors().clone();
+            an.push(modu.get_name().clone());
+            an.join("::")
+        };
+        let mut last_n = self.map_data.get_safe_name();
+        format!("{}::{}", ancestory, last_n)
     }
 }
 impl Method {
@@ -97,7 +369,7 @@ impl Method {
                     from: token.0.clone(),
                     to: "".to_string()
                 },
-                type_signature: token.1.clone()
+                type_signature: Signatures::parse_from_str(&token.1)
             }
         }
         else{
@@ -107,7 +379,7 @@ impl Method {
                     from: token.0.clone(),
                     to: token.1.clone()
                 },
-                type_signature: token.2.clone()
+                type_signature: Signatures::parse_from_str(&token.2)
             }
 
         }
@@ -120,7 +392,7 @@ impl Field {
                 from: token.0.clone(),
                 to: token.1.clone()
             },
-            type_signature: token.2.clone()
+            type_signature: Signatures::parse_from_str(&token.2)
         }
     }
 }
@@ -214,43 +486,7 @@ pub enum YarnParseError {
 }
 
 
-
-#[derive(Debug)]
-enum YarnSigType<'a> {
-    Class(&'a str),
-    Bool,
-    Byte,
-    Char,
-    Short,
-    Int,
-    Long,
-    Float,
-    Double,
-    Void
-}
-impl ToString for YarnSigType<'_> {
-    fn to_string(&self) -> String {
-        match self {
-            YarnSigType::Class(s) => s.to_string(),
-            YarnSigType::Bool => "bool".to_string(),
-            YarnSigType::Byte => "u8".to_string(),
-            YarnSigType::Char => "char".to_string(),
-            YarnSigType::Short => "i16".to_string(),
-            YarnSigType::Int => "i32".to_string(),
-            YarnSigType::Long => "i64".to_string(),
-            YarnSigType::Float => "f32".to_string(),
-            YarnSigType::Double => "f64".to_string(),
-            YarnSigType::Void => "()".to_string()
-        }
-    }
-}
-#[derive(Debug)]
-enum YarnSigTypes<'a> {
-    Method(Vec<YarnSigType<'a>>,),
-    Field(YarnSigType<'a>)
-}
-
-impl<'a> Yarn<'a> {
+impl Yarn {
 
     pub fn new() -> Self {
         Self {
@@ -263,7 +499,7 @@ impl<'a> Yarn<'a> {
         
     }
 
-    pub fn run_str(&mut self,s :&str) -> Result<Arc<RwLock<Class>>,YarnParseError> {
+    pub fn run_str(&mut self,s :&str,modu : Arc<RwLock<ModuleOrClass>>) -> Result<Arc<RwLock<Class>>,YarnParseError> {
         let tokens = YarnTokens::lexer(&s);
 
         let mut tokens = tokens.peekable();
@@ -271,26 +507,32 @@ impl<'a> Yarn<'a> {
         let mut root_class = Arc::new(RwLock::new(match tokens.peek() {
             Some(token) => {
                 match token {
-                    YarnTokens::Class(id) => Class::from_token(id),
+                    YarnTokens::Class(id) => Class::from_token(id,modu.clone()),
                     _ => return Err(YarnParseError::RootClassNotFound)
                 }
             },
             None => return Err(YarnParseError::LexingError),
         }));
+        // println!("root_class = {:?}", root_class);
+        {
+            let up = root_class.read();
+            self.lookup.insert(up.map_data.from.to_uppercase(), up.get_namespaced());
+        }
 
         let mut stack = vec![root_class.clone()];
 
         tokens.next();
         let last_token = 0;
-
         for tok in tokens {
             match tok {
                 YarnTokens::Class(x) => {
-                    let clzz = Class::from_token(&x);
+                    let clzz = Class::from_token(&x,modu.clone());
+                    self.lookup.insert(clzz.map_data.from.to_uppercase(), clzz.get_namespaced());
                     stack.last_mut().unwrap().write().inner_classes.push(Arc::new(RwLock::new(clzz)));
                 },
                 YarnTokens::ClassId(x) => {
-                    let clzz = Class::from_token(&x);
+                    let clzz = Class::from_token(&x,modu.clone());
+                    self.lookup.insert(clzz.map_data.from.to_uppercase(), clzz.get_namespaced());
                     stack.last_mut().unwrap().write().inner_classes.push(Arc::new(RwLock::new(clzz)));
 
                 },
@@ -299,7 +541,12 @@ impl<'a> Yarn<'a> {
                     stack.last_mut().unwrap().write().methods.push(Method::from_token(&m));
                 },
                 YarnTokens::Arg(a) => {
-                    stack.last_mut().unwrap().write().methods.last_mut().ok_or(YarnParseError::ImpossibleArgument)?.arguments.push(Mapping { from: a.0.to_string(), to: a.1 });
+                    if let Some(lm) = stack.last_mut().unwrap().write().methods.last_mut() {
+                        lm.arguments.push(Mapping { from: a.0.to_string(), to: a.1 });
+                    } else {
+                        println!("invalid method")
+                    }
+                    // stack.last_mut().unwrap().write().methods.last_mut().ok_or(YarnParseError::ImpossibleArgument)?.arguments.push(Mapping { from: a.0.to_string(), to: a.1 });
                 },
                 YarnTokens::Field(f) => {
                     stack.last_mut().unwrap().write().fields.push(Field::from_token(&f));
@@ -321,11 +568,11 @@ impl<'a> Yarn<'a> {
                         }
                     }
                 },
-                // YarnTokens::NewLine => todo!(),
-                // YarnTokens::Comment(_) => todo!(),
+                YarnTokens::NewLine => {},
+                YarnTokens::Comment(_) => {},
                 // YarnTokens::Identifier(_) => todo!(),
                 _ => {
-
+                    // println!("unhandled token: {:?}",tok)
                 }
                 YarnTokens::Error => return Err(YarnParseError::LexingError),
             }
@@ -336,12 +583,12 @@ impl<'a> Yarn<'a> {
         Ok(root_class)
     }
 
-    pub fn run_file(&mut self,path:&PathBuf) -> Result<Arc<RwLock<Class>>,YarnParseError> {
+    pub fn run_file(&mut self,path:&PathBuf, modu : Arc<RwLock<Module>>) -> Result<Arc<RwLock<Class>>,YarnParseError> {
         let mut file = File::open(path).unwrap();
         let mut fstr = String::new();
         file.read_to_string(&mut fstr);
-        
-        self.run_str(&fstr)
+        let convert = ModuleOrClass::Module(modu.clone());
+        self.run_str(&fstr,Arc::new(RwLock::new(convert)))
     }
     pub fn run_directory(&mut self,path:PathBuf, module:Option<Arc<RwLock<Module>>>) -> Result<Arc<RwLock<Module>>,YarnParseError> {
         let mut module = match module {
@@ -368,8 +615,9 @@ impl<'a> Yarn<'a> {
                 self.run_directory(path,Some(new_mod.clone()));
                 module.write().scope.push(ModuleOrClass::Module(new_mod.clone()));
             } else {
-                match self.run_file(&path) {
+                match self.run_file(&path,module.clone()) {
                     Ok(x) => {
+                        println!("{} success",&path.display());
                         module.write().scope.push(ModuleOrClass::Class(x.clone()));
                     },
                     Err(r) => {
@@ -387,22 +635,28 @@ mod tests {
     use std::{path::PathBuf, fs::File, io::Write};
 
     use super::Yarn;
-    #[test]
-    fn test_lexer() {
-        let mut yarn_instance = Yarn::new();
+    // #[test]
+    // fn test_lexer() {
+    //     let mut yarn_instance = Yarn::new();
     
-        yarn_instance.run_str(include_str!("../../../mc-mappings/mappings/mappings/net/minecraft/advancement/Advancement.mapping")).expect("bruh");
-    }
+    //     yarn_instance.run_str(include_str!("../../../mc-mappings/mappings/mappings/net/minecraft/advancement/Advancement.mapping")).expect("bruh");
+    // }
 
     #[test]
     fn test_dir_run() {
         let mut yarn_instance = Yarn::new();
-
+        if !std::env::current_dir().unwrap().to_string_lossy().ends_with("gen") {
+            std::env::set_current_dir("./crates/map-gen").unwrap();
+        }
         println!("env = {}",std::env::current_dir().unwrap().to_str().unwrap());
 
-        yarn_instance.run_directory(PathBuf::from("../mc-mappings/mappings/mappings/net/minecraft"), None);
-
-        File::create("test.ron").unwrap().write_all(format!("{:#?}",yarn_instance.modules).as_bytes()).unwrap();
+        yarn_instance.run_directory(PathBuf::from("../mc-mappings/mappings/mappings/net/minecraft/advancement"), None);
+        println!("done");
+        let mut wf = File::create("test.ron").unwrap();
+        let data = format!("{:#?}",yarn_instance.modules);
+        println!("got data");
+        println!("lookup table = {:#?}",yarn_instance.lookup);
+        write!(wf,"{}",data).unwrap();
         // println!("{:#?}",yarn_instance.modules);
     }
 }

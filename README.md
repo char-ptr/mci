@@ -33,7 +33,7 @@ DYLD_INSERT_LIBRARIES=/Users/****/dev/mci/target/debug/libmci.dylib ./polymc
   - [x] jvalue
   - [x] env (i)
   - [ ] jarray (ii)
-  - [ ] jstring (ii)
+  - [x] jstring (ii)
   - [ ] others...
   #### information
   1. pretty much bare essentials like find class have wrapped values

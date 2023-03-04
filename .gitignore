@@ -1,8 +1,10 @@
 /target
+/target/*
 /**/*/target
 /mc-mappings/mappings
 mc-mappings/output.txt
 /.idea
+/.idea/*
 crates/gen_src.rs
 crates/map-gen/test.ron
 crates/mc-mappings/mappings

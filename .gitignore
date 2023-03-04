@@ -8,3 +8,4 @@ mc-mappings/output.txt
 crates/gen_src.rs
 crates/map-gen/test.ron
 crates/mc-mappings/mappings
+/mappings

@@ -2,6 +2,7 @@ use std::{path::PathBuf, env, fs};
 
 fn main() {
 
+    println!("cargo:rerun-if-env-changed=JAVA_HOME");
     let mut jdk_location = PathBuf::from(std::env::var("JAVA_HOME").expect("JAVA_HOME not set"));
     
     if jdk_location.display().to_string().contains("homebrew") && !jdk_location.display().to_string().contains("Contents"){
@@ -10,7 +11,6 @@ fn main() {
     }
     println!("cargo:rustc-link-search={}",jdk_location.join("lib").display());
     println!("cargo:rustc-link-lib=jvm");
-    println!("cargo:rerun-if-env-changed=JAVA_HOME");
 
     { // fix jni jni_md location cuz it's fucked
         let os = match std::env::consts::OS {

@@ -25,6 +25,7 @@ fn entry() {
 #[poggers_derive::create_entry]
 fn main_thread() -> Result<(), String> {
     use jni::jvalue::JValue;
+    use mc_mappings::mappings::net::minecraft::client::MinecraftClient;
 
 
     let mut mci = mci::MCI::default();
@@ -35,34 +36,22 @@ fn main_thread() -> Result<(), String> {
 
 
     println!("we're chillin");
-
     {
         let jenv = mci.get_jenv();
         let jenv = jenv.write().unwrap();
         let ver = jenv.get_version();
         println!("version: {}", ver);
+                
         let minecraft_client = jenv.find_class("eev").unwrap();
-        println!("mc = {:?}",minecraft_client.ptr);
+        // println!("mc = {:?}",minecraft_client.ptr);
         if let Ok(obj) = minecraft_client.call_static_object_method::<JObject>("G", "()Leev;",&vec![]) {
-            println!("oke {:?}",obj.ptr);
-
-            let is_64bit = obj.get_field_boolean("ac", "Z");
-            let game_ver = obj.get_field_object::<JString>("Y", "Ljava/lang/String;");
-            println!("is_64bit = {:?}",is_64bit);
-            if let Ok(gamev) = game_ver {
-                println!("minecraft version = {:?}",gamev.to_string());
+            let mcc = MinecraftClient::from(obj);
+            println!("is 64 bit: {:?}", mcc.is64Bit());
+            if let Ok(ver) = mcc.gameVersion() {
+                println!("game version: {:?}",JString::from(ver));
             }
         }
         
-        // MinecraftVersion class
-
-        // let minecraft_version = jenv.find_class("v").unwrap();
-        // if let Ok(GameVersionObj) = minecraft_version.get_static_object_field::<JObject>("a", "Lae;") {
-        //     let str = GameVersionObj.get_field_object::<JString>("d", "Ljava/lang/String;");
-        //     if let Ok(str) = str {
-        //         println!("game version = {:?}",str);
-        //     }
-        // }
         println!("q");
 
         

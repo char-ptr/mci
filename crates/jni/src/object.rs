@@ -297,3 +297,11 @@ impl<'a,T> From<JArray<'a,T>> for JObject<'a> {
         Self::from(&x.ptr)
     }
 }
+pub trait JClassInstance {
+    fn get_jobject(&self) -> JObject;
+}
+impl<'a> JClassInstance for JObject<'a> {
+    fn get_jobject(&self) -> JObject<'a> {
+        self.clone()
+    }
+}

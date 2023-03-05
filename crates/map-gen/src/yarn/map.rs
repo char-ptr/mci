@@ -135,6 +135,12 @@ pub enum SigContentTypes {
     Void
 }
 impl SigContentTypes {
+    pub fn is_class(&self) -> bool {
+        match self {
+            SigContentTypes::Class(_) => true,
+            _ => false
+        }
+    }
     pub fn to_rust(&self) -> String {
         match self {
             SigContentTypes::Class(s) => s.to_string(),
@@ -185,6 +191,39 @@ impl SigPart {
             SigPart::WithArray {depth, content} => {
                 let s = content.to_rust();
                 format!("{}{s}{}","JArray<".repeat(*depth), ">".repeat(*depth))
+            }
+        }
+    }
+    pub fn to_rust_life(&self) -> String {
+        match self {
+            SigPart::Normal(s) => s.to_rust(),
+            SigPart::WithArray {depth, content} => {
+                let s = content.to_rust();
+                format!("{}{s}{}","JArray<'a,".repeat(*depth), ">".repeat(*depth))
+            }
+        }
+    }
+    pub fn to_rust_custom(&self,cus:&str) -> String {
+        match self {
+            SigPart::Normal(s) => if s.is_class() { cus.to_string() } else { s.to_rust() },
+            SigPart::WithArray {depth, content} => {
+                format!("{}{}{}","JArray<".repeat(*depth),if content.is_class() { cus.to_string() } else { content.to_rust() }, ">".repeat(*depth))
+            }
+        }
+    }
+    pub fn to_rust_custom_life(&self,cus:&str) -> String {
+        match self {
+            SigPart::Normal(s) => if s.is_class() { cus.to_string() } else { s.to_rust() },
+            SigPart::WithArray {depth, content} => {
+                format!("{}{}{}","JArray<'a,".repeat(*depth),if content.is_class() { cus.to_string() } else { content.to_rust() }, ">".repeat(*depth))
+            }
+        }
+    }
+    pub fn to_rust_no_array(&self) -> String {
+        match self {
+            SigPart::Normal(s) => s.to_rust(),
+            SigPart::WithArray {depth, content} => {
+                content.to_rust()
             }
         }
     }

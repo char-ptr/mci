@@ -15,4 +15,5 @@ pub mod prelude {
     pub use crate::jarray::JArray;
     pub use crate::jstring::JString;
     pub use crate::class::JClass;
+    pub use crate::object::JClassInstance;
 }

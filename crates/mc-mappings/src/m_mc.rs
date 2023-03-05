@@ -31,3 +31,8 @@ impl<'a> From<JObject<'a>> for MinecraftClient<'a> {
         Self { inner: obj }
     }
 }
+impl<'a> Into<JObject<'a>> for MinecraftClient<'a> {
+    fn into(self) -> JObject<'a> {
+        self.inner
+    }
+}

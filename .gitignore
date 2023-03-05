@@ -9,3 +9,5 @@ crates/gen_src.rs
 crates/map-gen/test.ron
 crates/mc-mappings/mappings
 /mappings
+crates/mc-mappings/gen_src.rs
+crates/map-gen/lookup.ron

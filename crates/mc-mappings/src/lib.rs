@@ -5,4 +5,6 @@
 // pub mod m_mc;
 // pub mod maps;
 
+mod m_mc;
+
 include!(concat!(env!("OUT_DIR"),"/gen.rs"));

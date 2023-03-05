@@ -45,6 +45,13 @@ impl LookupType {
             LookupType::Field(field) => field.Obfuscated.clone(),
         }
     }
+    pub fn get_signature(&self) -> String {
+        match self {
+            LookupType::Class(class) => class.to.clone(),
+            LookupType::Method(method) => method.Signature.clone(),
+            LookupType::Field(field) => field.Signature.clone(),
+        }
+    }
 }
 
 

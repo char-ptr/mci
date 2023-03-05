@@ -24,9 +24,9 @@ DYLD_INSERT_LIBRARIES=/Users/****/dev/mci/target/debug/libmci.dylib ./polymc
   - [x] set static fields
   - [x] call methods
   - [x] call static methods
-- [ ] general QOL
+- [x] general QOL
   - [x] jclass not operable with jobject (prevents you from shooting yourself)
-  - [ ] easier setting & getting via traits/macros (?)
+  - [x] easier setting & getting via traits/macros (?)
 - [ ] types
   - [x] jclass
   - [x] jobject
@@ -51,10 +51,10 @@ DYLD_INSERT_LIBRARIES=/Users/****/dev/mci/target/debug/libmci.dylib ./polymc
     - [x] call static methods
     - [x] set fields
     - [x] set static fields
-    - [ ] compilable 
+    - [x] compilable 
     - [ ] auto static detection (i)
  #### information
- 1. im currently working on a tool to get static fields and method names from a jar file.
+ i. i'll eventually work on a tool to get static fields and method names from a jar file.
  ### MCI (root)
  im not even working on it until mappings work lol
 

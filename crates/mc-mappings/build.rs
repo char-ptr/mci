@@ -9,10 +9,11 @@ fn main() {
     // let tiny = reqwest::blocking::get(format!("https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/{mc_ver}.tiny"))
     //     .expect("unable to download tiny mappings").bytes().expect("unable to get bytes");
 
-    println!("cargo:rerun-if-env-changed=MCMAPS");
-
-    let OUT_DIR: String = std::env::var("MCMAPS").unwrap();
-    let OUT_DIRP: PathBuf = PathBuf::from(&OUT_DIR);
+    
+    let MCM_DIR: String = std::env::var("MCMAPS").unwrap();
+    let MCM_DIRP: PathBuf = PathBuf::from(&MCM_DIR);
+    println!("cargo:rerun-if-changed={MCM_DIR}");
+    let OUT_DIRP: PathBuf = PathBuf::from(&std::env::var("OUT_DIR").unwrap());
     // let mut tinyf = File::create(format!("{OUT_DIR}/{mc_ver}.tiny",)).expect("unable to create tiny mappings file");
     // tinyf.write_all(&*tiny);
 
@@ -30,8 +31,8 @@ fn main() {
 
         let mut gen = Generator::new();
 
-        gen.Yarn.run_directory(OUT_DIRP.join(format!("{OUT_DIR}/yarn-maps/mappings")), None).expect("unable to parse yarn mappings");
-        let mut tiny = BufReader::new(File::open(OUT_DIRP.join(format!("maps.tiny"))).expect("unable to parse tiny mappings"));
+        gen.Yarn.run_directory(MCM_DIRP.join(format!("{MCM_DIR}/yarn-maps/mappings")), None).expect("unable to parse yarn mappings");
+        let mut tiny = BufReader::new(File::open(MCM_DIRP.join(format!("maps.tiny"))).expect("unable to parse tiny mappings"));
         gen.Tiny.populate_from_reader(&mut tiny);
 
         let code = gen.generate();

@@ -1,6 +1,7 @@
 use std::{ops::{Index, Deref, DerefMut}, default, marker::PhantomData};
 
 use crate::{unchecked_jnic, object::JObject, jvalue::JValue};
+use crate::object::JClassInstance;
 use super::env::Jenv;
 pub struct JArray<'a,T> {
     pub ptr : JObject<'a>,
@@ -33,5 +34,11 @@ impl<'a> JArray<'a,i32> {
         unsafe {
             Vec::from_raw_parts(unchecked_jnic!(self.ptr.env.ptr,GetIntArrayElements, self.ptr.ptr, std::ptr::null_mut()), self.length, self.length)
         }
+    }
+}
+
+impl<T> JClassInstance for JArray<'_,T> {
+    fn get_jobject(&self) -> JObject {
+        self.ptr.clone()
     }
 }

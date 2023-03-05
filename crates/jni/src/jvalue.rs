@@ -96,6 +96,11 @@ impl<'a> From<JObject<'a>> for JValue<'a> {
         Self::JObject(obj)
     }
 }
+impl<'a> From<&JObject<'a>> for JValue<'a> {
+    fn from(obj: &JObject<'a>) -> Self {
+        Self::JObject(obj.clone())
+    }
+}
 
 impl From<bool> for JValue<'_> {
     fn from(x: bool) -> Self {

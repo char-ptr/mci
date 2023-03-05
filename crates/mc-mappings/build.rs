@@ -12,7 +12,7 @@ fn main() {
     
     let MCM_DIR: String = std::env::var("MCMAPS").unwrap();
     let MCM_DIRP: PathBuf = PathBuf::from(&MCM_DIR);
-    println!("cargo:rerun-if-changed={MCM_DIR}");
+    println!("cargo:rerun-if-env-changed=MCMAPS");
     let OUT_DIRP: PathBuf = PathBuf::from(&std::env::var("OUT_DIR").unwrap());
     // let mut tinyf = File::create(format!("{OUT_DIR}/{mc_ver}.tiny",)).expect("unable to create tiny mappings file");
     // tinyf.write_all(&*tiny);

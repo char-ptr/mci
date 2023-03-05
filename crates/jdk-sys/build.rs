@@ -4,7 +4,7 @@ fn main() {
 
     let mut jdk_location = PathBuf::from(std::env::var("JAVA_HOME").expect("JAVA_HOME not set"));
     
-    println!("cargo:rerun-if-changed={}",std::env::var("JAVA_HOME").unwrap());
+    println!("cargo:rerun-if-env-changed=JAVA_HOME");
     
     if jdk_location.display().to_string().contains("homebrew") && !jdk_location.display().to_string().contains("Contents"){
         jdk_location = jdk_location.join("libexec/openjdk.jdk/Contents/Home");
@@ -47,7 +47,7 @@ fn main() {
         // .write_to_file("./binds.rs")
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings!");
-    {
-        fs::remove_file(jdk_location.join("include/jni_md.h")).expect("Failed to clean up jni_md.h");
-    }
+    // { // causes build script to rerun
+    //     fs::remove_file(jdk_location.join("include/jni_md.h")).expect("Failed to clean up jni_md.h");
+    // }
 }

@@ -1,5 +1,5 @@
 # mci
-minecraft cheat interface
+Minecraft Interface - Interact with minecraft through rust
 
 ## why
 

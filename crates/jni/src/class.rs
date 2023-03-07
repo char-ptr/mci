@@ -9,10 +9,16 @@ pub struct JClass<'a> {
     pub env : &'a Jenv<'a>,
 }
 impl<'a> JClass<'a> {
-    pub fn new(ptr:jdk_sys::jclass,env : &'a Jenv) -> Self {
+    pub const fn new(ptr:jdk_sys::jclass,env : &'a Jenv) -> Self {
         JClass {
             ptr,
             env,
+        }
+    }
+    pub fn null(env : &'a Jenv) -> Self {
+        JClass {
+            ptr : ptr::null_mut(),
+            env
         }
     }
 

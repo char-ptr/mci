@@ -1,6 +1,11 @@
+param($version)
+echo "downloading mappings for $version"
+if (Test-Path .\mappings ) {
+    echo "removing old mappings"
+    rm -Recurse -Force .\mappings
+}
+
 mkdir .\mappings
-cd .\mappings
-curl https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/1.19.tiny -o maps.tiny
-git clone --depth 1 --sparse -b 1.19 https://github.com/FabricMC/yarn yarn-maps
-cd ./yarn-maps
-git sparse-checkout set mappings
+curl https://raw.githubusercontent.com/FabricMC/intermediary/master/mappings/$version.tiny -o ./mappings/maps.tiny
+git clone --depth 1 --sparse -b $version https://github.com/FabricMC/yarn ./mappings/yarn-maps
+git -C ./mappings/yarn-maps sparse-checkout set mappings

@@ -59,16 +59,16 @@ impl Generator {
         let clz = clz.read();
         let cstruct = gen_on.new_struct(&clz.map_data.get_safe_name()).vis("pub");
         cstruct.generic("'a");
-        cstruct.field("pub inner", "JObject<'a>");
+        cstruct.field("pub i", "JObject<'a>");
 
         gen_on.new_impl(&clz.map_data.get_safe_name()).generic("'a").target_generic("'a").impl_trait("From<JObject<'a>>")
-            .new_fn("from").arg("obj", "JObject<'a>").ret("Self").line("Self { inner: obj }");
+            .new_fn("from").arg("obj", "JObject<'a>").ret("Self").line("Self { i: obj }");
         // gen_on.new_impl(&clz.map_data.get_safe_name()).generic("'a").target_generic("'a").impl_trait("Into<JObject<'a>>")
-        //     .new_fn("into").ret("JObject<'a>").line("self.inner").arg_self();
+        //     .new_fn("into").ret("JObject<'a>").line("self.i").arg_self();
         gen_on.new_impl(&clz.map_data.get_safe_name()).impl_trait("jni::object::JClassInstance").generic("'a").target_generic("'a")
-            .new_fn("get_jobject").ret("JObject<'a>").arg_ref_self().line("self.inner.clone()");
+            .new_fn("get_jobject").ret("JObject<'a>").arg_ref_self().line("self.i.clone()");
         if let Some(ti_name) = self.Tiny.lookup.clone().read().get(&format!("{}_c",clz.map_data.from)) {
-            gen_on.new_impl(&clz.map_data.get_safe_name()).generic("'a").target_generic("'a").associate_const("MAP_SIG", "&'static str", format!(r#""{}""#,ti_name.get_obfuscated()), "pub");
+            gen_on.new_impl(&clz.map_data.get_safe_name()).generic("'a").target_generic("'a").associate_const("M_S", "&'static str", format!(r#""{}""#,ti_name.get_obfuscated()), "pub");
         } else {
             return ();
         }
@@ -105,7 +105,7 @@ impl Generator {
                 let mut mcf = codegen::Function::new(&format!("m_{}_{}",&meth.map_data.get_safe_name(),&meth.map_data.from));
                 mcf.ret(&ret).vis("pub").arg_ref_self();
                 let mut mcfs = codegen::Function::new(&format!("ms_{}_{}",&meth.map_data.get_safe_name(),&meth.map_data.from));
-                mcfs.ret(ret).vis("pub").arg("env", "&'a Jenv<'a>");
+                mcfs.ret(ret).vis("pub").arg("e", "&'a Jenv<'a>");
 
                 let mut argument_jobjects = vec![];
                 let mut argument_names = vec![];
@@ -148,10 +148,10 @@ impl Generator {
                     mcfs.arg(&fa_name,&arg_looked_up);
                 }
                 let code_args = argument_jobjects.join(",");
-                let code_setup = format!(r#"let h_args = vec![{code_args}];"#);
-                let args_post = format!(r#"("{}","{}",&h_args)"#,ti_name.get_obfuscated(),ti_name.get_signature());
-                mcf.line(format!(r#"{code_setup}self.inner.{n_mname}{args_post}"#));
-                mcfs.line(format!(r#"{code_setup}let class = env.find_class(Self::MAP_SIG)?;class.{s_mname}{args_post}"#));
+                let args = format!(r#"vec![{code_args}]"#);
+                let args_post = format!(r#"("{}","{}",&{args})"#,ti_name.get_obfuscated(),ti_name.get_signature());
+                mcf.line(format!(r#"self.i.{n_mname}{args_post}"#));
+                mcfs.line(format!(r#"e.find_class(Self::M_S)?.{s_mname}{args_post}"#));
 
                 cimpl.push_fn(mcf);
                 cimpl.push_fn(mcfs);
@@ -185,10 +185,10 @@ impl Generator {
             let static_mname = if is_clz {format!("get_static_object_field::<{looked_up}>")} else {format!("get_static_{}_field",primative)};
             let n_mname = if is_clz {format!("get_field_object::<{looked_up}>")} else {format!("get_field_{}",primative)};
 
-            cimpl.new_fn(&format!("s_{}",fiel.map_data.get_safe_name())).ret(&ret).arg("env", "&'a Jenv<'a>").vis("pub")
-                .line(format!(r#"let class = env.find_class(Self::MAP_SIG)?;class.{static_mname}("{}", "{}")"#,ti_name.get_obfuscated(),ti_name.get_signature()));
+            cimpl.new_fn(&format!("s_{}",fiel.map_data.get_safe_name())).ret(&ret).arg("e", "&'a Jenv<'a>").vis("pub")
+                .line(format!(r#"e.find_class(Self::M_S)?.{static_mname}("{}", "{}")"#,ti_name.get_obfuscated(),ti_name.get_signature()));
             cimpl.new_fn(&format!("r#{}",fiel.map_data.get_safe_name())).ret(&ret).arg_ref_self().vis("pub")
-                .line(format!(r#"self.inner.{n_mname}("{}", "{}")"#,ti_name.get_obfuscated(),ti_name.get_signature()));
+                .line(format!(r#"self.i.{n_mname}("{}", "{}")"#,ti_name.get_obfuscated(),ti_name.get_signature()));
 
         }
         else {
@@ -205,7 +205,7 @@ mod tests {
     #[test]
     fn test_all() {
         let mut gen = Generator::new();
-        // println!("@ => {}", std::env::current_dir().unwrap().display());
+        // println!("@ => {}", std::e::current_dir().unwrap().display());
         gen.Yarn.run_directory(PathBuf::from("../../mappings/yarn-maps/mappings/net/minecraft/"), None).expect("bnruh");
         let mut tiny = BufReader::new(File::open("../../mappings/maps.tiny").expect("fw"));
         gen.Tiny.populate_from_reader(&mut tiny);

@@ -7,6 +7,11 @@
       <sourceFolder url="file://$MODULE_DIR$/mc-mappings/map-utils/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/mc-mappings/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/jdk-sys/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/jni-proc/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/jni/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/map-gen/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/crates/mc-mappings/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/mc-mappings/target" />
     </content>

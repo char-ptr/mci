@@ -36,8 +36,9 @@ fn main() {
         gen.Tiny.populate_from_reader(&mut tiny);
 
         let code = gen.generate();
+        let min_code = rust_minify::minify(&code).expect("unable to minify generated code");
         let f = File::create(OUT_DIRP.join("gen.rs"));
-        f.unwrap().write_all(code.to_string().as_bytes());
+        f.unwrap().write_all(min_code.to_string().as_bytes());
 
     // } else {
     //     eprintln!("unable to clone yarn maps");

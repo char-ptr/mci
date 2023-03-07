@@ -1,4 +1,4 @@
-use std::{ffi::CString, ptr, sync::Arc};
+use std::{ffi::CString, ptr, sync::Arc, marker::PhantomData};
 
 use jdk_sys::{jfieldID, jmethodID, jvalue, JNI_TRUE};
 use crate::{unchecked_jnic, unchecked_jnice, jvalue::JValue, class::JClass, jarray::JArray};
@@ -20,6 +20,13 @@ impl<'a> JObject<'a> {
             class
         }
     }
+    pub fn null(env : &'a Jenv) -> Self {
+        JObject {
+            ptr : ptr::null_mut(),
+            env,
+            class : Arc::new(JClass::null(env))
+        }
+    }
 
 
     /// hard clone
@@ -31,6 +38,11 @@ impl<'a> JObject<'a> {
 
     pub fn get_class(&self) -> Arc<JClass<'a>> {
         Arc::clone(&self.class)
+    }
+
+    /// is null? https://docs.oracle.com/en/java/javase/17/docs/api/java.base/java/util/Objects.html#isNull(java.lang.Object)
+    pub fn is_null(&self) -> bool {
+        self.env.find_class("java/util/Objects").unwrap().call_static_boolean_method("isNull","(Ljava/lang/Object;)Z",&vec![JValue::JObject(self.clone())]).unwrap()
     }
 
     // get field
@@ -305,3 +317,101 @@ impl<'a> JClassInstance for JObject<'a> {
         self.clone()
     }
 }
+
+
+pub struct AbstractJField<'a,T> {
+    parent : &'a JObject<'a>,
+    name : String,
+    sig : String,
+    return_type : PhantomData<T>,
+}
+pub struct AbstractJMethod<'a,T> {
+    parent : &'a JObject<'a>,
+    name : String,
+    sig : String,
+    return_type : PhantomData<T>,
+    args : Vec<JValue<'a>>,
+}
+pub struct AbstractStaticJField<T> {
+    class_sig:String,
+    name : String,
+    sig : String,
+    return_type : PhantomData<T>,
+}
+pub struct AbstractStaticJMethod<'a,T> {
+    class_sig: String,
+    name : String,
+    sig : String,
+    return_type : PhantomData<T>,
+    args : Vec<JValue<'a>>,
+}
+impl<'a,T > AbstractStaticJMethod<'a,T> where T : From<JObject<'a>> {
+    pub const fn new(class_sig : String,name : String,sig : String, args: Vec<JValue<'a>>) -> Self {
+        Self {
+            class_sig,
+            name,
+            sig,
+            args,
+            return_type : PhantomData,
+        }
+    }
+    pub fn call(&self,env: &'a Jenv) -> Result<T,()> {
+        env.find_class(&self.class_sig)?.call_static_object_method(&self.name,&self.sig,&self.args)
+    }
+}
+impl<'a,T > AbstractStaticJField<T> where T : From<JObject<'a>> + JClassInstance {
+    pub const fn new(class_sig : String,name : String,sig : String) -> Self {
+        Self {
+            class_sig,
+            name,
+            sig,
+            return_type : PhantomData,
+        }
+    }
+    pub fn get(&self,env:&'a Jenv) -> Result<T,()> {
+        env.find_class(&self.class_sig)?.get_static_object_field(&self.name,&self.sig,)
+    }
+    pub fn set(&self,env:&'a Jenv,new_value:T) -> Result<(),()> {
+        env.find_class(&self.class_sig)?.set_static_object_field(&self.name,&self.sig,&new_value.get_jobject())
+    }
+}
+impl<'a,T > AbstractJField<'a,T> where T : From<JObject<'a>> + JClassInstance {
+    pub const fn new(parent : &'a JObject<'a>,name : String,sig : String) -> Self {
+        Self {
+            parent,
+            name,
+            sig,
+            return_type : PhantomData,
+        }
+    }
+    pub fn get(&self) -> Result<T,()> {
+        self.parent.get_field_object(&self.name,&self.sig)
+    }
+    pub fn set(&self,new_value:T) -> Result<(),()> {
+        self.parent.set_field_object(&self.name,&self.sig,&new_value.get_jobject())
+    }
+
+}
+impl<'a,T > AbstractJMethod<'a,T> where T : From<JObject<'a>> + JClassInstance {
+    pub const fn new(parent : &'a JObject<'a>,name : String,sig : String, args: Vec<JValue<'a>>) -> AbstractJMethod<'a,T> {
+        Self {
+            parent,
+            name,
+            sig,
+            args,
+            return_type : PhantomData,
+        }
+    }
+    pub fn call(&self) -> Result<T,()> {
+        self.parent.call_object_method(&self.name,&self.sig,&self.args)
+    }
+}
+
+jni_proc::generate_jobject_impls!(bool,boolean);
+jni_proc::generate_jobject_impls!(i8,byte);
+jni_proc::generate_jobject_impls!(char,char);
+jni_proc::generate_jobject_impls!(i16,short);
+jni_proc::generate_jobject_impls!(i32,int);
+jni_proc::generate_jobject_impls!(i64,long);
+jni_proc::generate_jobject_impls!(f32,float);
+jni_proc::generate_jobject_impls!(f64,double);

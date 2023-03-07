@@ -22,9 +22,10 @@ fn entry() {
     }
 }
 #[cfg(not(target_os="macos"))]
-#[poggers_derive::create_entry]
+#[poggers_derive::create_entry(no_console)]
 fn main_thread() -> Result<(), String> {
-    use mc_mappings::mappings::net::minecraft::client::MinecraftClient;
+    use mc_mappings::mappings::net::minecraft::{client::MinecraftClient, text::Text};
+
 
 
     let mut mci = mci::MCI::default();
@@ -40,9 +41,26 @@ fn main_thread() -> Result<(), String> {
         let jenv = jenv.write().unwrap();
         let ver = jenv.get_version();
         println!("version: {}", ver);
-                
+
+        // mc_mappings::m_mc::MinecraftClient::s_call_getInstance(&jenv, &[]).call();
+
         if let Ok(mcc) = MinecraftClient::ms_getInstance_method_1551(&jenv) {
+            println!("mc = ok");
             println!("is 64 bit: {:?}", mcc.is64Bit());
+            if let Ok(plr) = mcc.player() {
+                let msg = JString::new("hi from rust",&jenv);
+                let txt = Text { i: JObject::null(&jenv) };
+                std::thread::sleep(std::time::Duration::from_secs(1));
+                let mut c = 0;
+                while c < 3 {
+                    plr.m_sendChatMessage_method_44096(&msg.obj,&txt);
+                    c+=1;
+                    std::thread::sleep(std::time::Duration::from_secs(14));
+                }
+                // plr.m_sendChatMessage_method_44096(&msg.obj,&txt);
+            } else {
+                println!("what the fuck?")
+            }
             if let Ok(ver) = mcc.gameVersion() {
                 println!("game version: {:?}",JString::from(ver));
             }

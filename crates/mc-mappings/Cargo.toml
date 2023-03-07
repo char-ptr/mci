@@ -8,5 +8,6 @@ edition = "2021"
 [build-dependencies]
 reqwest = { version = "0.11.14",features=["blocking"] }
 map-gen = {path = "../map-gen"}
+rust_minify = {git = "https://github.com/to-omer/rust_minify.git"}
 [dependencies]
 jni ={path="../jni"}

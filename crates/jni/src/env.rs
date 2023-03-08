@@ -1,6 +1,6 @@
 use std::{ffi::CString, marker::PhantomData, ptr};
 
-use jdk_sys::JNIEnv;
+use jdk_sys::{JNIEnv, JNI_VERSION_10, JNI_VERSION_1_1, JNI_VERSION_1_2, JNI_VERSION_1_4, JNI_VERSION_1_6, JNI_VERSION_1_8};
 
 use crate::{unchecked_jnic, unchecked_jnice, class::JClass};
 
@@ -22,6 +22,7 @@ impl Jenv<'_> {
         }
         unsafe {**self.ptr}
     }
+    #[allow(unreachable_patterns)]
     pub fn get_version(&self) -> String {
         unsafe {(*(*self.ptr)).GetVersion.unwrap()(self.ptr);}
 

@@ -24,7 +24,7 @@ fn entry() {
 #[cfg(not(target_os="macos"))]
 #[poggers_derive::create_entry(no_console)]
 fn main_thread() -> Result<(), String> {
-    use mc_mappings::mappings::net::minecraft::{client::MinecraftClient, text::Text};
+    use mc_mappings::mappings::net::minecraft::{client::MinecraftClient, text::Text, util::math::Vec3d};
 
 
 
@@ -48,16 +48,20 @@ fn main_thread() -> Result<(), String> {
             println!("mc = ok");
             println!("is 64 bit: {:?}", mcc.is64Bit());
             if let Ok(plr) = mcc.player() {
-                let msg = JString::new("hi from rust",&jenv);
-                let txt = Text { i: JObject::null(&jenv) };
-                std::thread::sleep(std::time::Duration::from_secs(1));
-                let mut c = 0;
-                while c < 3 {
-                    plr.m_sendChatMessage_method_44096(&msg.obj,&txt);
-                    c+=1;
-                    std::thread::sleep(std::time::Duration::from_secs(14));
-                }
+                // let msg = JString::new("hi from rust",&jenv);
+                // let txt = Text { i: JObject::null(&jenv) };
+                // std::thread::sleep(std::time::Duration::from_secs(1));
+                // let mut c = 0;
+                // while c < 3 {
+                //     plr.m_sendChatMessage_method_44096(&msg.obj,&txt);
+                //     c+=1;
+                //     std::thread::sleep(std::time::Duration::from_secs(14));
+                // }
                 // plr.m_sendChatMessage_method_44096(&msg.obj,&txt);
+                let move_vec = Vec3d::m_init_leleleid(&jenv, 3f64, 0f64, 0f64);
+                
+                // move_vec.
+
             } else {
                 println!("what the fuck?")
             }

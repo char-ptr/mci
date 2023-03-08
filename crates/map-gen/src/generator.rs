@@ -8,6 +8,8 @@ use quote::format_ident;
 use quote::quote;
 use rand::Rng;
 
+use crate::tiny;
+use crate::tiny::map::LookupType;
 use crate::yarn::map::{*};
 use crate::tiny::map::Tiny;
 
@@ -92,19 +94,55 @@ impl Generator {
             } else {
                 pre_lookup_ret.to_rust_life()
             };
-            if let Some(ti_name) = self.Tiny.lookup.clone().read().get(&format!("{}_m",meth.map_data.from)) {
-                let ret = format!("Result<{},()>",ret_looked_up);
+            let temp_lt = LookupType::Method(tiny::map::Method{
+                Obfuscated: meth.map_data.from.clone(),
+                Signature: meth.type_signature.to_java(),
+                Yarn:format!("{}_{}",meth.map_data.get_safe_name(),meth.type_signature.to_javas()),
+                parent: meth.map_data.from.clone(),
+
+            });
+            let mut use_temp = false;
+            if let Some(ti_name) = self.Tiny.lookup.clone().read().get(&format!("{}_m",meth.map_data.from)).or_else(|| {
+                println!("i got you = {temp_lt:?}");
+                if !meth.map_data.from.is_empty() && meth.map_data.to.is_empty() {
+                    use_temp = true;
+                    Some(&temp_lt)
+                } else {None}
+            }) {
+                let mut ret = format!("Result<{},()>",ret_looked_up);
 
                 let is_ret_clz = is_ret_clz || pre_lookup_ret.is_array();
                 let primative = if is_ret_clz {"".to_string()} else {pre_lookup_ret.get_content().to_java_name()};
     
 
-                let n_mname = if is_ret_clz {format!("call_object_method::<{ret_looked_up}>")} else {format!("call_{}_method",primative)};
+                let mut n_mname = if is_ret_clz {format!("call_object_method::<{ret_looked_up}>")} else {format!("call_{}_method",primative)};
                 let s_mname = if is_ret_clz {format!("call_static_object_method::<{ret_looked_up}>")} else {format!("call_static_{}_method",primative)};
-                let mid = thr_rand.gen::<u32>();
-                let mut mcf = codegen::Function::new(&format!("m_{}_{}",&meth.map_data.get_safe_name(),&meth.map_data.from));
-                mcf.ret(&ret).vis("pub").arg_ref_self();
-                let mut mcfs = codegen::Function::new(&format!("ms_{}_{}",&meth.map_data.get_safe_name(),&meth.map_data.from));
+                let nst = if use_temp {
+                    format!("m_{}",temp_lt.get_yarn())
+                } else {
+                    format!("m_{}_{}",&meth.map_data.get_safe_name(),&meth.map_data.from)
+                };
+                let sst = if use_temp {
+                    format!("ms_{}",temp_lt.get_yarn())
+                } else {
+                    format!("ms_{}_{}",&meth.map_data.get_safe_name(),&meth.map_data.from)
+                };
+                let is_constructor = meth.map_data.from.contains("<init>");
+                let mut mcf = if is_constructor {
+                    let clzn = clz.map_data.get_safe_name();
+                    n_mname = format!("new_object::<{}>",&clzn);
+                    ret = format!("Result<{}<'a>,()>",clzn);
+                    let mut mcf = codegen::Function::new(&nst);
+                    mcf.ret(&ret).vis("pub").arg("e", "&'a Jenv<'a>");
+                    mcf
+
+                } else {
+
+                    let mut mcf = codegen::Function::new(&nst);
+                    mcf.ret(&ret).vis("pub").arg_ref_self();
+                    mcf
+                };
+                let mut mcfs = codegen::Function::new(&sst);
                 mcfs.ret(ret).vis("pub").arg("e", "&'a Jenv<'a>");
 
                 let mut argument_jobjects = vec![];
@@ -150,11 +188,17 @@ impl Generator {
                 let code_args = argument_jobjects.join(",");
                 let args = format!(r#"vec![{code_args}]"#);
                 let args_post = format!(r#"("{}","{}",&{args})"#,ti_name.get_obfuscated(),ti_name.get_signature());
-                mcf.line(format!(r#"self.i.{n_mname}{args_post}"#));
+                if is_constructor {
+                    mcf.line(format!(r#"e.find_class(Self::M_S)?.{n_mname}{args_post}"#));
+                } else {
+                    mcf.line(format!(r#"self.i.{n_mname}{args_post}"#));
+                }
                 mcfs.line(format!(r#"e.find_class(Self::M_S)?.{s_mname}{args_post}"#));
 
                 cimpl.push_fn(mcf);
-                cimpl.push_fn(mcfs);
+                if !is_constructor {
+                    cimpl.push_fn(mcfs);
+                }
             }
         }
         // let sig = self.Tiny.lookup.clone().read().get(&format!("{}_c",clz.map_data.from)).unwrap().get_obfuscated();

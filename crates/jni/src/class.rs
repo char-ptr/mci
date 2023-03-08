@@ -15,11 +15,32 @@ impl<'a> JClass<'a> {
             env,
         }
     }
+    pub fn find(env : &'a Jenv,clz:&str) -> Result<Self,()> {
+        env.find_class(clz)
+    }
     pub fn null(env : &'a Jenv) -> Self {
         JClass {
             ptr : ptr::null_mut(),
             env
         }
+    }
+    pub fn get_super<T: From<JObject<'a>>>(&self) -> Result<JClass<'a>,()> {
+        let obj = unchecked_jnic!(self.env.ptr,GetSuperclass, self.ptr);
+        if obj.is_null() {
+            return Err(());
+        }
+
+        Ok(JClass::new(obj,self.env))
+    }
+    pub fn new_object<T : From<JObject<'a>>>(&self,name:&str,sig:&str,args:&Vec<JValue>) -> Result<T,()> {
+        let mid=  self.get_method_id(name,sig)?;
+        let args = args.iter().map(|f|f.get_c_style()).collect::<Vec<jvalue>>();
+
+        let obj = unchecked_jnic!(self.env.ptr,NewObjectA, self.ptr, mid,args.as_ptr());
+        if obj.is_null() {
+            return Err(());
+        }
+        Ok(T::from(JObject::new(obj,self.env)))
     }
 
     pub fn get_field_id(&self, name:&str, sig:&str) -> Result<jfieldID,()> {

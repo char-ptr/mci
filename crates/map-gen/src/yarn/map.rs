@@ -118,6 +118,18 @@ impl Signatures {
             Signatures::FieldSig(s) => s.to_java()
         }
     }
+    pub fn to_javas(&self) -> String {
+        match self {
+            Signatures::MethodSig {arguments, ret} => {
+                let mut args = String::new();
+                for arg in arguments {
+                    args.push_str(&arg.to_java_safer());
+                }
+                format!("{}{}", args, ret.to_java_safer())
+            },
+            Signatures::FieldSig(s) => s.to_java_safer()
+        }
+    }
 }
 
 
@@ -236,6 +248,20 @@ impl SigPart {
             }
         }
     }
+    pub fn to_java_safer(&self) -> String {
+        match self {
+            SigPart::Normal(s) => {
+                let s1 = s.to_java_name();
+                let s = &s1[s1.len()-2..];
+                s.to_string()
+            },
+            SigPart::WithArray {depth, content} => {
+                let s1 = &content.to_java_name();
+                let s = &s1[s1.len()-2..];
+                format!("{}{s}","a".repeat(*depth))
+            }
+        }
+    }
 }
 
 impl Signatures {
@@ -322,7 +348,7 @@ impl Mapping {
             name = {
                 let mut name = self.from.clone();
                 let mut name = name.split('/').last().unwrap().to_string();
-                name.retain(|c| c.is_alphanumeric() || c == '_');
+                name.retain(|c| c.is_ascii_alphanumeric() || c == '_');
                 name
             };
             println!("Warning: {} has no name, using {} instead", self.from, name);

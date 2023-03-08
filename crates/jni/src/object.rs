@@ -28,6 +28,14 @@ impl<'a> JObject<'a> {
         }
     }
 
+    pub fn get_super<T: From<JObject<'a>>>(&self) -> Result<T,()> {
+        let obj = unchecked_jnic!(self.env.ptr,GetSuperclass, self.ptr);
+        if obj.is_null() {
+            return Err(());
+        }
+
+        Ok(T::from(JObject::new(obj,self.env)))
+    }
 
     /// hard clone
     /// https://docs.oracle.com/en/java/javase/14/docs/api/java.base/java/lang/Object.html#clone()

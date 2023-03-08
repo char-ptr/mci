@@ -7,6 +7,7 @@ use quote::ToTokens;
 use quote::format_ident;
 use quote::quote;
 use rand::Rng;
+use rand::rngs::ThreadRng;
 
 use crate::tiny;
 use crate::tiny::map::LookupType;
@@ -80,130 +81,136 @@ impl Generator {
         }
         let mut thr_rand = rand::thread_rng();
         for meth in &clz.methods {
+            self.generate_method(meth, class, cimpl, &mut thr_rand)
             
-            
-            // step 1: get return ready.
-            let (pre_lookup_a,pre_lookup_ret) = meth.type_signature.clone().unwrap_method();
-            let is_ret_clz = pre_lookup_ret.is_class();
-            let ret_looked_up = if is_ret_clz {
-                if let Some(lkup) = self.Yarn.lookup.get(&pre_lookup_ret.to_rust().to_uppercase()) {
-                    pre_lookup_ret.to_rust_custom_life(&format!("crate::{}<'a>",lkup))
-                } else {
-                    pre_lookup_ret.to_rust_custom_life("JObject<'a>")
-                }
-            } else {
-                pre_lookup_ret.to_rust_life()
-            };
-            let temp_lt = LookupType::Method(tiny::map::Method{
-                Obfuscated: meth.map_data.from.clone(),
-                Signature: meth.type_signature.to_java(),
-                Yarn:format!("{}_{}",meth.map_data.get_safe_name(),meth.type_signature.to_javas()),
-                parent: meth.map_data.from.clone(),
-
-            });
-            let mut use_temp = false;
-            if let Some(ti_name) = self.Tiny.lookup.clone().read().get(&format!("{}_m",meth.map_data.from)).or_else(|| {
-                println!("i got you = {temp_lt:?}");
-                if !meth.map_data.from.is_empty() && meth.map_data.to.is_empty() {
-                    use_temp = true;
-                    Some(&temp_lt)
-                } else {None}
-            }) {
-                let mut ret = format!("Result<{},()>",ret_looked_up);
-
-                let is_ret_clz = is_ret_clz || pre_lookup_ret.is_array();
-                let primative = if is_ret_clz {"".to_string()} else {pre_lookup_ret.get_content().to_java_name()};
-    
-
-                let mut n_mname = if is_ret_clz {format!("call_object_method::<{ret_looked_up}>")} else {format!("call_{}_method",primative)};
-                let s_mname = if is_ret_clz {format!("call_static_object_method::<{ret_looked_up}>")} else {format!("call_static_{}_method",primative)};
-                let nst = if use_temp {
-                    format!("m_{}",temp_lt.get_yarn())
-                } else {
-                    format!("m_{}_{}",&meth.map_data.get_safe_name(),&meth.map_data.from)
-                };
-                let sst = if use_temp {
-                    format!("ms_{}",temp_lt.get_yarn())
-                } else {
-                    format!("ms_{}_{}",&meth.map_data.get_safe_name(),&meth.map_data.from)
-                };
-                let is_constructor = meth.map_data.from.contains("<init>");
-                let mut mcf = if is_constructor {
-                    let clzn = clz.map_data.get_safe_name();
-                    n_mname = format!("new_object::<{}>",&clzn);
-                    ret = format!("Result<{}<'a>,()>",clzn);
-                    let mut mcf = codegen::Function::new(&nst);
-                    mcf.ret(&ret).vis("pub").arg("e", "&'a Jenv<'a>");
-                    mcf
-
-                } else {
-
-                    let mut mcf = codegen::Function::new(&nst);
-                    mcf.ret(&ret).vis("pub").arg_ref_self();
-                    mcf
-                };
-                let mut mcfs = codegen::Function::new(&sst);
-                mcfs.ret(ret).vis("pub").arg("e", "&'a Jenv<'a>");
-
-                let mut argument_jobjects = vec![];
-                let mut argument_names = vec![];
-                for (idx,marg) in meth.arguments.iter().enumerate() {
-                    let mut a_name = marg.get_safe_name();
-                    let a_sig = &pre_lookup_a[idx];
-
-                    let is_a_clz = a_sig.is_class();
-
-                    // now lookup the type.
-
-                    let arg_looked_up = if is_a_clz {
-                        format!("&'a {}",if let Some(lkup) = self.Yarn.lookup.get(&a_sig.to_rust_no_array().to_uppercase()) {
-                            a_sig.to_rust_custom_life(&format!("crate::{}",lkup))
-                        } else {
-                            a_sig.to_rust_custom_life("JObject<'a>")
-                        })
-                    } else {
-                        a_sig.to_rust_life()
-                    };
-
-                    if argument_names.contains(&a_name) {
-                        a_name = format!("{}{}",a_name,thr_rand.gen::<u32>());
-                    }
-
-                    argument_names.push(a_name.clone());
-
-                    let fa_name = format!("a_{a_name}");
-
-                    let jobj_n = format!("JValue::from({})",if is_a_clz {
-                        format!("{}.get_jobject()",fa_name)
-                    } else {
-                        fa_name.clone()
-                    });
-                    argument_jobjects.push(jobj_n);
-
-
-
-                    mcf.arg(&fa_name,&arg_looked_up);
-                    mcfs.arg(&fa_name,&arg_looked_up);
-                }
-                let code_args = argument_jobjects.join(",");
-                let args = format!(r#"vec![{code_args}]"#);
-                let args_post = format!(r#"("{}","{}",&{args})"#,ti_name.get_obfuscated(),ti_name.get_signature());
-                if is_constructor {
-                    mcf.line(format!(r#"e.find_class(Self::M_S)?.{n_mname}{args_post}"#));
-                } else {
-                    mcf.line(format!(r#"self.i.{n_mname}{args_post}"#));
-                }
-                mcfs.line(format!(r#"e.find_class(Self::M_S)?.{s_mname}{args_post}"#));
-
-                cimpl.push_fn(mcf);
-                if !is_constructor {
-                    cimpl.push_fn(mcfs);
-                }
-            }
         }
         // let sig = self.Tiny.lookup.clone().read().get(&format!("{}_c",clz.map_data.from)).unwrap().get_obfuscated();
         // println!("{}",sig);
     }
+    //@todo refactor
+    fn generate_method(&self, meth:&Method,class:&Arc<RwLock<Class>>,cimpl:&mut codegen::Impl,thr_rand : &mut ThreadRng) -> () {
+        let clz = class.clone();
+        let clz = clz.read();
+        let (pre_lookup_a,pre_lookup_ret) = meth.type_signature.clone().unwrap_method();
+        let is_ret_clz = pre_lookup_ret.is_class();
+        let ret_looked_up = if is_ret_clz {
+            if let Some(lkup) = self.Yarn.lookup.get(&pre_lookup_ret.to_rust().to_uppercase()) {
+                pre_lookup_ret.to_rust_custom_life(&format!("crate::{}<'a>",lkup))
+            } else {
+                pre_lookup_ret.to_rust_custom_life("JObject<'a>")
+            }
+        } else {
+            pre_lookup_ret.to_rust_life()
+        };
+        let temp_lt = LookupType::Method(tiny::map::Method{
+            Obfuscated: meth.map_data.from.clone(),
+            Signature: meth.type_signature.to_java(),
+            Yarn:format!("{}_{}",meth.map_data.get_safe_name(),meth.type_signature.to_javas()),
+            parent: meth.map_data.from.clone(),
+
+        });
+        let mut use_temp = false;
+        if let Some(ti_name) = self.Tiny.lookup.clone().read().get(&format!("{}_m",meth.map_data.from)).or_else(|| {
+            println!("i got you = {temp_lt:?}");
+            if !meth.map_data.from.is_empty() && meth.map_data.to.is_empty() {
+                use_temp = true;
+                Some(&temp_lt)
+            } else {None}
+        }) {
+            let mut ret = format!("Result<{},()>",ret_looked_up);
+
+            let is_ret_clz = is_ret_clz || pre_lookup_ret.is_array();
+            let primative = if is_ret_clz {"".to_string()} else {pre_lookup_ret.get_content().to_java_name()};
+
+
+            let mut n_mname = if is_ret_clz {format!("call_object_method::<{ret_looked_up}>")} else {format!("call_{}_method",primative)};
+            let s_mname = if is_ret_clz {format!("call_static_object_method::<{ret_looked_up}>")} else {format!("call_static_{}_method",primative)};
+            let nst = if use_temp {
+                format!("m_{}",temp_lt.get_yarn())
+            } else {
+                format!("m_{}_{}",&meth.map_data.get_safe_name(),&meth.map_data.from)
+            };
+            let sst = if use_temp {
+                format!("ms_{}",temp_lt.get_yarn())
+            } else {
+                format!("ms_{}_{}",&meth.map_data.get_safe_name(),&meth.map_data.from)
+            };
+            let is_constructor = meth.map_data.from.contains("<init>");
+            let mut mcf = if is_constructor {
+                let clzn = clz.map_data.get_safe_name();
+                n_mname = format!("new_object::<{}>",&clzn);
+                ret = format!("Result<{}<'a>,()>",clzn);
+                let mut mcf = codegen::Function::new(&nst);
+                mcf.ret(&ret).vis("pub").arg("e", "&'a Jenv<'a>");
+                mcf
+
+            } else {
+
+                let mut mcf = codegen::Function::new(&nst);
+                mcf.ret(&ret).vis("pub").arg_ref_self();
+                mcf
+            };
+            let mut mcfs = codegen::Function::new(&sst);
+            mcfs.ret(ret).vis("pub").arg("e", "&'a Jenv<'a>");
+
+            let mut argument_jobjects = vec![];
+            let mut argument_names = vec![];
+            for (idx,marg) in meth.arguments.iter().enumerate() {
+                let mut a_name = marg.get_safe_name();
+                let a_sig = &pre_lookup_a[idx];
+
+                let is_a_clz = a_sig.is_class();
+
+                // now lookup the type.
+
+                let arg_looked_up = if is_a_clz {
+                    format!("&'a {}",if let Some(lkup) = self.Yarn.lookup.get(&a_sig.to_rust_no_array().to_uppercase()) {
+                        a_sig.to_rust_custom_life(&format!("crate::{}",lkup))
+                    } else {
+                        a_sig.to_rust_custom_life("JObject<'a>")
+                    })
+                } else {
+                    a_sig.to_rust_life()
+                };
+
+                if argument_names.contains(&a_name) {
+                    a_name = format!("{}{}",a_name,thr_rand.gen::<u32>());
+                }
+
+                argument_names.push(a_name.clone());
+
+                let fa_name = format!("a_{a_name}");
+
+                let jobj_n = format!("JValue::from({})",if is_a_clz {
+                    format!("{}.get_jobject()",fa_name)
+                } else {
+                    fa_name.clone()
+                });
+                argument_jobjects.push(jobj_n);
+
+
+
+                mcf.arg(&fa_name,&arg_looked_up);
+                mcfs.arg(&fa_name,&arg_looked_up);
+            }
+            let code_args = argument_jobjects.join(",");
+            let args = format!(r#"vec![{code_args}]"#);
+            let args_post = format!(r#"("{}","{}",&{args})"#,ti_name.get_obfuscated(),ti_name.get_signature());
+            if is_constructor {
+                mcf.line(format!(r#"e.find_class(Self::M_S)?.{n_mname}{args_post}"#));
+            } else {
+                mcf.line(format!(r#"self.i.{n_mname}{args_post}"#));
+            }
+            mcfs.line(format!(r#"e.find_class(Self::M_S)?.{s_mname}{args_post}"#));
+
+            cimpl.push_fn(mcf);
+            if !is_constructor {
+                cimpl.push_fn(mcfs);
+            }
+        }
+        
+    }
+
     fn generate_field(&self,fiel:&Field, class: &Arc<RwLock<Class>>, cimpl: &mut codegen::Impl) -> () {
         let clz = class.clone();
         let clz = clz.read();

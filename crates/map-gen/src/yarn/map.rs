@@ -4,7 +4,6 @@ use std::{
 };
 
 use logos::{Lexer, Logos};
-use parking_lot::RwLock;
 
 #[derive(Debug)]
 pub struct Module {
@@ -32,7 +31,7 @@ pub struct Class {
 impl Debug for Class {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!(
-            "{} {{\n\tfields : {:#?}\n\tmethods : {:#?}\n\tinner_classes : {:#?}}}",
+            "'{}' {{\n\tfields : {:#?},\n\tmethods : {:#?},\n\tinner_classes : {:#?}}}",
             self.map_data.to, self.fields, self.methods, self.inner_classes
         ))
     }
@@ -539,7 +538,7 @@ pub enum YarnTokens {
     #[regex(r"\t+", callback = |lex| lex.slice().chars().count())]
     Tab(usize),
 
-    #[regex("\n")]
+    #[regex("\n", logos::skip)]
     NewLine,
 
     #[regex(r#"COMMENT.*"#, |lex| lex.slice()[7..].to_string())]
@@ -583,23 +582,76 @@ impl Yarn {
     pub fn run_str(&mut self, s: &str) -> Result<Class, YarnParseError> {
         let tokens = YarnTokens::lexer(&s);
 
+        let mut tab_index_size = 0;
+        let mut class_stack = vec![];
         for token in tokens {
             let Ok(token) = token else {
                 return Err(YarnParseError::LexingError);
             };
             match token {
-                YarnTokens::Class(_) => todo!(),
-                YarnTokens::ClassId(_) => todo!(),
-                YarnTokens::Method(_) => todo!(),
-                YarnTokens::Arg(_) => todo!(),
-                YarnTokens::Field(_) => todo!(),
-                YarnTokens::Tab(_) => todo!(),
-                YarnTokens::NewLine => todo!(),
-                YarnTokens::Comment(_) => todo!(),
-                YarnTokens::Identifier(_) => todo!(),
-                YarnTokens::Error => todo!(),
+                YarnTokens::ClassId(class) | YarnTokens::Class(class) => {
+                    let parsed_class = Class::from_token(&class);
+                    class_stack.push(parsed_class);
+                }
+                YarnTokens::Method(meth) => class_stack
+                    .last_mut()
+                    .expect("no class on class stack")
+                    .methods
+                    .push(Method::from_token(&meth)),
+                YarnTokens::Arg(argument) => class_stack
+                    .last_mut()
+                    .expect("no class on class stack")
+                    .methods
+                    .last_mut()
+                    .expect("tried to add argument when no methods")
+                    .arguments
+                    .push(Mapping {
+                        from: argument.0.to_string(),
+                        to: argument.1.to_string(),
+                    }),
+                YarnTokens::Field(field) => class_stack
+                    .last_mut()
+                    .expect("no class on class stack")
+                    .fields
+                    .push(Field::from_token(&field)),
+                YarnTokens::Tab(new_size) => {
+                    if new_size > tab_index_size {
+                        tab_index_size = new_size
+                    } else {
+                        // pop the classes of the stack
+                        for _ in 0..(tab_index_size - new_size) {
+                            let Some(popped_class) = class_stack.pop() else {
+                                panic!("popped too many off class stack")
+                            };
+                            if class_stack.is_empty() {
+                                return Ok(popped_class);
+                            }
+                            class_stack
+                                .last_mut()
+                                .expect("no class on class stack")
+                                .inner_classes
+                                .push(popped_class)
+                        }
+                    }
+                }
+                // YarnTokens::Comment(message) => println!("found comment: {message}"),
+                _ => {}
             }
         }
+        for _ in 0..class_stack.len() {
+            let Some(popped_class) = class_stack.pop() else {
+                panic!("popped too many off class stack")
+            };
+            if class_stack.is_empty() {
+                return Ok(popped_class);
+            }
+            class_stack
+                .last_mut()
+                .expect("no class on class stack")
+                .inner_classes
+                .push(popped_class)
+        }
+        Err(YarnParseError::RootClassNotFound)
     }
 
     pub fn run_file(&mut self, path: &PathBuf) -> Result<Class, YarnParseError> {
@@ -663,11 +715,17 @@ mod tests {
             std::env::current_dir().unwrap().to_str().unwrap()
         );
 
-        yarn_instance.run_directory(PathBuf::from("../../mappings/yarn-maps/mappings/net"));
+        let module_for_dir = yarn_instance
+            .run_directory(PathBuf::from(
+                // "../../mappings/yarn-maps/mappings/net/minecraft/advancement",
+                "../../mappings/yarn-maps/mappings/net/minecraft/",
+            ))
+            .unwrap();
+        yarn_instance.modules.push(module_for_dir);
         println!("done");
         let mut wf = File::create("test.ron").unwrap();
         let data = format!("{:#?}", yarn_instance.modules);
-        println!("got data");
+        println!("got data ",);
         println!("lookup table = {:#?}", yarn_instance.lookup);
         write!(wf, "{}", data).unwrap();
         // println!("{:#?}",yarn_instance.modules);

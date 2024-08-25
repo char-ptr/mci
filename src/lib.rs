@@ -1,18 +1,30 @@
+#![deny(rust_2018_idioms)]
 #![feature(new_uninit)]
 mod mci;
 use std::ffi::CString;
 
-use jni::{object::JObject, jstring::JString};
+use jni::{jstring::JString, object::JObject};
 
-#[cfg(any(target_os="macos",target_os="linux"))]
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 use ctor::*;
-#[cfg(target_os="macos")]
+#[cfg(target_os = "macos")]
 #[ctor]
 fn entry() {
     use std::time::Duration;
     let mut args = std::env::args();
 
-    if args.next().unwrap().contains("java") && args.filter_map(|a| if a.contains("minecraft") && a.ends_with(".jar") {Some(a)} else {None}).count() > 0  {
+    if args.next().unwrap().contains("java")
+        && args
+            .filter_map(|a| {
+                if a.contains("minecraft") && a.ends_with(".jar") {
+                    Some(a)
+                } else {
+                    None
+                }
+            })
+            .count()
+            > 0
+    {
         println!("pogging");
         std::thread::spawn(|| {
             std::thread::sleep(Duration::from_secs(2));
@@ -21,19 +33,19 @@ fn entry() {
         });
     }
 }
-#[cfg(not(target_os="macos"))]
-#[poggers_derive::create_entry(no_console)]
+// #[cfg(not(target_os = "macos"))]
+#[cfg_attr(not(target_os = "macos"), poggers_derive::create_entry(no_console))]
+// #[poggers_derive::create_entry(no_console)]
 fn main_thread() -> Result<(), String> {
-    use mc_mappings::mappings::net::minecraft::{client::MinecraftClient, text::Text, util::math::Vec3d};
-
-
+    use mc_mappings::mappings::net::minecraft::{
+        client::MinecraftClient, text::Text, util::math::Vec3d,
+    };
 
     let mut mci = mci::MCI::default();
 
     mci.load_jvm()?;
 
     mci.attach_current_thread()?;
-
 
     println!("we're chillin");
     {
@@ -59,32 +71,26 @@ fn main_thread() -> Result<(), String> {
                 // }
                 // plr.m_sendChatMessage_method_44096(&msg.obj,&txt);
                 let move_vec = Vec3d::m_init_leleleid(&jenv, 3f64, 0f64, 0f64);
-                
-                // move_vec.
 
+                // move_vec.
             } else {
                 println!("what the fuck?")
             }
             if let Ok(ver) = mcc.gameVersion() {
-                println!("game version: {:?}",JString::from(ver));
+                println!("game version: {:?}", JString::from(ver));
             }
         }
-        
+
         println!("q");
-
-        
-
     }
-
 
     Ok(())
 }
 
-
 fn main_thread_wrap() {
     use std::panic;
 
-    match panic::catch_unwind(||main_thread()) {
+    match panic::catch_unwind(|| main_thread()) {
         Err(e) => {
             println!("`main` has panicked: {:#?}", e);
         }
@@ -92,7 +98,7 @@ fn main_thread_wrap() {
             Err(e) => {
                 eprint!("`main` failed with {:?}", e);
             }
-            _ => {},
+            _ => {}
         },
     }
 

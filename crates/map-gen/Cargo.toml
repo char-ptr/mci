@@ -6,10 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-logos = "0.12.1"
+logos = "0.14.1"
 parking_lot = "0.12.1"
 walkdir = "2"
 proc-macro2 = "1.0.43"
 quote = "1.0.21"
 codegen = "0.2.0"
 rand = "0.8.5"
+
